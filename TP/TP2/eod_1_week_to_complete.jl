@@ -6,7 +6,7 @@ using HiGHS
 using XLSX
 
 Tmax = 168 #optimization for 1 week (7*24=168 hours)
-data_file = "TP2/data_eod_1_week.xlsx"
+data_file = "TP2/data_eod_1_week_winter.xlsx"
 #data for load and fatal generation
 load = XLSX.readdata(data_file, "data", "C4:C171")
 wind = XLSX.readdata(data_file, "data", "D4:D171")
@@ -151,29 +151,30 @@ touch("TP2/results.csv")
 # file handling in write mode
 open("TP2/results.csv", "w") do f
     # 1. Ecriture du Header (En-tête)
-    write(f, "Heure ; ") # Nouvelle colonne temps
+    write(f, "Heure;") # Nouvelle colonne temps
     for name in names
-        write(f, "$name ; ")
+        write(f, "$name;")
     end
-    write(f, "Hydro ; STEP pompage ; STEP turbinage ; Batterie injection ; Batterie soutirage\n")
+    write(f, "Hydro;STEP pompage;STEP turbinage;Batterie injection;Batterie soutirage;Load\n")
 
     # 2. Ecriture des données
     for t in 1:Tmax
         # Ecriture de l'heure actuelle
-        write(f, "$t ; ") 
+        write(f, "$t;") 
         
         # Production thermique
         for g in 1:Nth
-            write(f, "$(th_gen[t,g]) ; ")
+            write(f, "$(th_gen[t,g]);")
         end
         
         # Production Hydro
         for h in 1:Nhy
-            write(f, "$(hy_gen[t,h]) ; ")
+            write(f, "$(hy_gen[t,h]);")
         end
         
         # STEP et Batterie
-        write(f, "$(STEP_charge[t]) ; $(STEP_decharge[t]) ; ")
-        write(f, "$(battery_charge[t]) ; $(battery_decharge[t])\n")
+        write(f, "$(STEP_charge[t]);$(STEP_decharge[t]);")
+        write(f, "$(battery_charge[t]);$(battery_decharge[t]);")
+        write(f, "$(load[t])\n")
     end
 end
