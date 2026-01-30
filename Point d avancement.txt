@@ -1,0 +1,45 @@
+Point d'avancement :
+
+Prix de l'électricité : variable duale de l'équilibre offre demande
+
+A priori on se place plutôt du pdv d'un acteur de marché si on conserve ce lien avec le prix de l'électricité
+-> il faut regarder les coût de productions uniquement si on se place au format RTE
+
+Boucle d'investissement -> c'est ouvert aussi on est pas dans le sujet d'origine
+
+Centrale hydrogène : modéliser centrale par centrale
+
+Sujet 100% ENR : Essentiellement Centrale H2
+
+POINT DE DEPART : on ferme les thermiques et on ajoute des ouvelles des nouvelles
+
+EOD : sur l'année 8176 il faut tout les pas de temps
+
+Bonne fenêtre de tir : Une seule semaine car pattern de météo sur 4 jours
+
+52 optimisations d'une semaine et Si-1 donne les Ci de la semaine d'après
+
+On peut essayer de l'historique
+POur notre sujet : mettre des contraintes de niveau de stock
+
+Modélisation du stockage hydrogène :
+- Contrainte sur l'H2 utilisé dans les centrales qui est bien issu de la prod
+- Pour aller plus loin : Hydrogène comme une autre énergie, représenter explicitement la production d'hydrogène
+- pas d'importation 
+
+Indisponibilités : laisser tomber, pas de défaillance !
+
+Pour la chronique de prod : on reprend les données de zootopia
+
+Bilan : on doit nous dire quelqs sont les bons investissements, résolu sur 52 semaines
+
+Le problème sur 52 semaines avec les capas 
+
+Effets de bords : 
+- Problème de stock et de vidage de stock
+- On ajoute une durée supplémentaire à chaque problème d'optimisation pour éviter qu'il arrête toutes les centrales avant la fin -> anneau de garde
+- On passe bien les conditions finales à la semaine d'après
+
+Rampes à supprimer pour le H2
+
+Prochaine deadline le 20 février
