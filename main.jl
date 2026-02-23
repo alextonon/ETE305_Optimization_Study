@@ -12,70 +12,94 @@ Tmax = Tweek + Tguard
 
 
 #data for load and fatal generation
-data_file = "data/data_eod_1_week_winter.xlsx"
+data_file = "data/Donnees_etude_de_cas_ETE305.xlsx"
 #data for load and fatal generation
-load = XLSX.readdata(data_file, "data", "C4:C171")
-offshore_load_factor = XLSX.readdata(data_file, "data", "D4:D171")
-onshore_load_factor = XLSX.readdata(data_file, "data", "E4:E171")
-solar_load_factor = XLSX.readdata(data_file, "data", "E4:E171")
-hydro_fatal = XLSX.readdata(data_file, "data", "F4:F171")
+load = XLSX.readdata(data_file, "Résumé", "H2:H193")
+offshore_load_factor = XLSX.readdata(data_file, "Résumé", "I2:I193")  
+onshore_load_factor = XLSX.readdata(data_file, "Résumé", "I2:I193")
+solar_load_factor = XLSX.readdata(data_file, "Résumé", "J2:J193")
+hydro_fatal = XLSX.readdata(data_file, "Résumé", "K2:K193")
 Pres = hydro_fatal 
+thermique_fatal = XLSX.readdata(data_file, "Résumé", "L2:L193")
+
+# data per week for hydro use (reference)
+Usable_per_week_hydro_lacs= XLSX.readdata(data_file, "Résumé", "D2") #quantité d'hydro disponible à la semaine (en MWh) pour les lacs
+Usable_per_week_hydro_STEP= XLSX.readdata(data_file, "Résumé", "D4") #quantité d'hydro disponible à la semaine (en MWh) pour les STEP
+
+
 
 #initial capacities 
-CapaSolar_init = XLSX.readdata(data_file, "data", "P6") #MW
-CapaOffshore_init = XLSX.readdata(data_file, "data", "P5") #MW
-CapaOnshore_init = XLSX.readdata(data_file, "data", "P4") #MW
+CapaSolar_init = XLSX.readdata(data_file, "Parc électrique", "C24") #MW
+CapaOffshore_init = XLSX.readdata(data_file, "Parc électrique", "C23") #MW
+CapaOnshore_init = XLSX.readdata(data_file, "Parc électrique", "C22") #MW
+
+#### Loading of CAPEX/OPEX data
+
+types_centrales=["onshore", "offshore_pose", "offshore_flot", "pv_pose", "pv_gd_toit", "pv_pet_toit", "CCG_H2", "TAC_H2", "electrolyseur", "batterie"]
+CAPEX=XLSX.readdata(data_file, "Investissements", "B2:B11") # CAPEX des différentes technologies en €/kW
+OPEX=XLSX.readdata(data_file, "Investissements", "C2:C11") # OPEX des différentes technologies en €/kW/an
+Duree_vie=XLSX.readdata(data_file, "Investissements", "D2:D11") # Durée de vie des différentes technologies en années
 
 #data for h2 clusters
-costs_h2 = XLSX.readdata(data_file, "data", "K4:K8")
-Pmin_h2 = XLSX.readdata(data_file, "data", "M4:M8") #MW
-Pmax_h2 = XLSX.readdata(data_file, "data", "L4:L8") #MW
-dmin = XLSX.readdata(data_file, "data", "N4:N8") #hours
+CAPEX_H2_CCG = CAPEX[7] #k€/MW
+OPEX_H2_CCG = OPEX[7] #k€/MW/year
+PU_cost_h2_CCG = XLSX.readdata(data_file, "Parc électrique", "H9") #€/MWh basé sur le tarif de prod de la centrale CCG gaz A MODIFIER
+Pmin_h2_CCG = XLSX.readdata(data_file, "Parc électrique", "F9") #MW idem
+Pmax_h2_CCG = XLSX.readdata(data_file, "Parc électrique", "E9") #MW idem
+dmin_CCG = XLSX.readdata(data_file, "Parc électrique", "G9") #hours idem
 
-#data for hydro reservoir
+CAPEX_H2_TAC = CAPEX[8] #k€/MW
+OPEX_H2_TAC = OPEX[8] #k€/MW/year
+PU_cost_h2_TAC = XLSX.readdata(data_file, "Parc électrique", "H10") #€/MWh basé sur le tarif de prod de la centrale TAC gaz A MODIFIER
+Pmin_h2_TAC = XLSX.readdata(data_file, "Parc électrique", "F10") #MW idem
+Pmax_h2_TAC = XLSX.readdata(data_file, "Parc électrique", "E10") #MW idem
+dmin_TAC = XLSX.readdata(data_file, "Parc électrique", "G10") #hours idem
+
+#data for hydro reservoir "lacs"
 Nhy = 1 #number of hydro generation units
-Pmin_hy = zeros(Nhy)
-Pmax_hy = XLSX.readdata(data_file, "data", "R4") *ones(Nhy) #MW
-e_hy = XLSX.readdata(data_file, "data", "S4")*ones(Nhy) #MWh
+Pmin_hy_lacs = zeros(Nhy)
+Pmax_hy_lacs = XLSX.readdata(data_file, "Parc électrique", "C20") *ones(Nhy) #MW
+e_hy_lacs = Usable_per_week_hydro_lacs*ones(Nhy) #MWh
+
 
 # variable costs
 ch2 = repeat(costs_h2', Tmax) #cost of hydrogen generation €/MWh
 cuns = 5000*ones(Tmax) #cost of unsupplied energy €/MWh
 cexc = 0*ones(Tmax) #cost of in excess energy €/MWh
 
-#investment costs
-capex_onshore = XLSX.readdata(data_file, "Investissements", "B2") #€/MW
-capex_offshore_fixed = XLSX.readdata(data_file, "Investissements", "B3") #€/MW
-capex_offshore_floating = XLSX.readdata(data_file, "Investissements", "B4") #€/MW
-capex_solar_ground = XLSX.readdata(data_file, "Investissements", "B5") #€/MW
-capex_solar_big_roof = XLSX.readdata(data_file, "Investissements", "B6") #€/MW
-capex_solar_small_roof = XLSX.readdata(data_file, "Investissements", "B7") #€/MW
-capex_CCG_H2 = XLSX.readdata(data_file, "Investissements", "B8") #€/MW
-capex_TAC_H2 = XLSX.readdata(data_file, "Investissements", "B9") #€/MW
-capex_electrolyser_H2 = XLSX.readdata(data_file, "Investissements", "B10") #€/MW
-capex_2h_battery = XLSX.readdata(data_file, "Investissements", "B11") #€/MW
+# #investment costs
+# capex_onshore = XLSX.readdata(data_file, "Investissements", "B2") #€/MW
+# capex_offshore_fixed = XLSX.readdata(data_file, "Investissements", "B3") #€/MW
+# capex_offshore_floating = XLSX.readdata(data_file, "Investissements", "B4") #€/MW
+# capex_solar_ground = XLSX.readdata(data_file, "Investissements", "B5") #€/MW
+# capex_solar_big_roof = XLSX.readdata(data_file, "Investissements", "B6") #€/MW
+# capex_solar_small_roof = XLSX.readdata(data_file, "Investissements", "B7") #€/MW
+# capex_CCG_H2 = XLSX.readdata(data_file, "Investissements", "B8") #€/MW
+# capex_TAC_H2 = XLSX.readdata(data_file, "Investissements", "B9") #€/MW
+# capex_electrolyser_H2 = XLSX.readdata(data_file, "Investissements", "B10") #€/MW
+# capex_2h_battery = XLSX.readdata(data_file, "Investissements", "B11") #€/MW
 
-#fixed opex 
-opex_onshore = XLSX.readdata(data_file, "Investissements", "C2") #€/MW/year
-opex_offshore_fixed = XLSX.readdata(data_file, "Investissements", "C3") #€/MW/year
-opex_offshore_floating = XLSX.readdata(data_file, "Investissements", "C4") #€/MW/year
-opex_solar_ground = XLSX.readdata(data_file, "Investissements", "C5") #€/MW/year
-opex_solar_big_roof = XLSX.readdata(data_file, "Investissements", "C6") #€/MW/year
-opex_solar_small_roof = XLSX.readdata(data_file, "Investissements", "C7") #€/MW/year
-opex_CCG_H2 = XLSX.readdata(data_file, "Investissements", "C8") #€/MW/year
-opex_TAC_H2 = XLSX.readdata(data_file, "Investissements", "C9") #€/MW/year
-opex_electrolyser_H2 = XLSX.readdata(data_file, "Investissements", "C10") #€/MW/year
-opex_2h_battery = XLSX.readdata(data_file, "Investissements", "C11") #€/MW/year
+# #fixed opex 
+# opex_onshore = XLSX.readdata(data_file, "Investissements", "C2") #€/MW/year
+# opex_offshore_fixed = XLSX.readdata(data_file, "Investissements", "C3") #€/MW/year
+# opex_offshore_floating = XLSX.readdata(data_file, "Investissements", "C4") #€/MW/year
+# opex_solar_ground = XLSX.readdata(data_file, "Investissements", "C5") #€/MW/year
+# opex_solar_big_roof = XLSX.readdata(data_file, "Investissements", "C6") #€/MW/year
+# opex_solar_small_roof = XLSX.readdata(data_file, "Investissements", "C7") #€/MW/year
+# opex_CCG_H2 = XLSX.readdata(data_file, "Investissements", "C8") #€/MW/year
+# opex_TAC_H2 = XLSX.readdata(data_file, "Investissements", "C9") #€/MW/year
+# opex_electrolyser_H2 = XLSX.readdata(data_file, "Investissements", "C10") #€/MW/year
+# opex_2h_battery = XLSX.readdata(data_file, "Investissements", "C11") #€/MW/year
 
 #data for STEP/battery
 #weekly STEP
-Pmax_STEP = XLSX.readdata(data_file, "data", "R5") #MW
-rSTEP = XLSX.readdata(data_file, "data", "T5")
+Pmax_STEP = XLSX.readdata(data_file, "Parc électrique", "C21") #MW
+rSTEP = Usable_per_week_hydro_STEP
 
 #battery
-Pmax_battery = 280 #MW
-rbattery = 0.85
-d_battery = 2 #hours
+Capa_batteries = 280 #MW
+rbattery = XLSX.readdata(data_file, "Rendements", "B9") # rendement de la batterie au sockage ou au destockage
+d_battery = XLSX.readdata(data_file, "Investissements", "E11") #hours
 
 
 #############################
