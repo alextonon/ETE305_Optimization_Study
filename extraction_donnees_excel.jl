@@ -21,7 +21,7 @@ data_file = "data/Donnees_etude_de_cas_ETE305.xlsx"
 
 #data for load and fatal generation
 conso = XLSX.readdata(data_file, "Consommation_elec_totale", range)
-
+conso = XLSX.readdata(data_file, "résumé", "H2:H194")
 ################### EXTRACTION DES STOCKS HYDRO ##########
 
 # On résonne sur le destockage à la semaine et non sur la différence de stock (qui n'est pas accessible au pas de temps horaire) 
@@ -29,11 +29,18 @@ range_hydro_lac = string("N", row_start, ":", "N", row_end)
 capa_hydro_lac = XLSX.readdata(data_file, "Détails historique hydro",range_hydro_lac) # capacité de stockage du lac en MWh
 utilisable_hydro_lac = sum(capa_hydro_lac[1:Tmax-24]) # quantité totale d'énergie hydroélectrique disponible sur la semaine (en MWh)
 
+############# va chercher direct dans le excel la somme de l'hydro dispo à la semaine (jour 1 vers jour 7 (jour 8 exclu)) 
+utilisable_hydro_lac = XLSX.readdata(data_file, "résumé","D2")
 
 range_hydro_STEP = string("O", row_start, ":", "O", row_end)
 capa_hydro_STEP = XLSX.readdata(data_file, "Détails historique hydro",range_hydro_STEP) # capacité de stockage du lac STEP en MWh
 utilisable_hydro_STEP = sum(capa_hydro_STEP[1:Tmax-24]) # quantité totale d'énergie hydroélectrique disponible sur la semaine (en MWh)
-
+######### en allant chercher direct dans le excel 
+utilisable_hydro_STEP = XLSX.readdata(data_file, "résumé","D4") # va chercher direct dans le excel la somme de l'hydro STEP dispo à la semaine (jour 1 vers jour 7 (jour 8 exclu))
 
 ################### EXTRACTION DES CAPEX ET OPEX DES INSTALLATIONS ##########
 
+types_centrales=["onshore", "offshore_pose", "offshore_flot", "pv_pose", "pv_gd_toit", "pv_pet_toit", "CCG_H2", "TAC_H2", "electrolyseur", "batterie"]
+CAPEX=XLSX.readdata(data_file, "Investissements", "B2:B11") # CAPEX des différentes technologies en €/kW
+OPEX=XLSX.readdata(data_file, "Investissements", "C2:C11") # OPEX des différentes technologies en €/kW/an
+Duree_vie=XLSX.readdata(data_file, "Investissements", "D2:D11") # Durée de vie des différentes technologies en années
