@@ -12,70 +12,189 @@ Tmax = Tweek + Tguard
 
 
 #data for load and fatal generation
-data_file = "data/data_eod_1_week_winter.xlsx"
+data_file = "data/Donnees_etude_de_cas_ETE305_copie.xlsx"
 #data for load and fatal generation
-load = XLSX.readdata(data_file, "data", "C4:C171")
-offshore_load_factor = XLSX.readdata(data_file, "data", "D4:D171")
-onshore_load_factor = XLSX.readdata(data_file, "data", "E4:E171")
-solar_load_factor = XLSX.readdata(data_file, "data", "E4:E171")
-hydro_fatal = XLSX.readdata(data_file, "data", "F4:F171")
+load = XLSX.readdata(data_file, "Résumé", "H2:H193")
+offshore_load_factor = XLSX.readdata(data_file, "Résumé", "I2:I193")  
+onshore_load_factor = XLSX.readdata(data_file, "Résumé", "I2:I193")
+solar_load_factor = XLSX.readdata(data_file, "Résumé", "J2:J193")
+hydro_fatal = XLSX.readdata(data_file, "Résumé", "K2:K193")
 Pres = hydro_fatal 
+thermique_fatal = XLSX.readdata(data_file, "Résumé", "L2:L193")
+
+# data per week for hydro use (reference)
+Usable_per_week_hydro_lacs= XLSX.readdata(data_file, "Résumé", "D2") #quantité d'hydro disponible à la semaine (en MWh) pour les lacs
+Usable_per_week_hydro_STEP= XLSX.readdata(data_file, "Résumé", "D4") #quantité d'hydro disponible à la semaine (en MWh) pour les STEP
+
+
 
 #initial capacities 
-CapaSolar_init = XLSX.readdata(data_file, "data", "P6") #MW
-CapaOffshore_init = XLSX.readdata(data_file, "data", "P5") #MW
-CapaOnshore_init = XLSX.readdata(data_file, "data", "P4") #MW
+CapaSolar_init = XLSX.readdata(data_file, "Parc électrique", "C24") #MW
+CapaOffshore_init = XLSX.readdata(data_file, "Parc électrique", "C23") #MW
+CapaOnshore_init = XLSX.readdata(data_file, "Parc électrique", "C22") #MW
+
+#### Loading of CAPEX/OPEX data
+
+types_centrales=["onshore", "offshore_pose", "offshore_flot", "pv_pose", "pv_gd_toit", "pv_pet_toit", "CCG_H2", "TAC_H2", "electrolyseur", "batterie"]
+CAPEX=XLSX.readdata(data_file, "Investissements", "B2:B11") # CAPEX des différentes technologies en €/kW
+OPEX=XLSX.readdata(data_file, "Investissements", "C2:C11") # OPEX des différentes technologies en €/kW/an
+Duree_vie=XLSX.readdata(data_file, "Investissements", "D2:D11") # Durée de vie des différentes technologies en années
 
 #data for h2 clusters
-costs_h2 = XLSX.readdata(data_file, "data", "K4:K8")
-Pmin_h2 = XLSX.readdata(data_file, "data", "M4:M8") #MW
-Pmax_h2 = XLSX.readdata(data_file, "data", "L4:L8") #MW
-dmin = XLSX.readdata(data_file, "data", "N4:N8") #hours
+capex_CCG_H2 = CAPEX[7]/1000 #€/MW
+opex_CCG_H2 = OPEX[7]/1000 #€/MW/year
+PU_cost_h2_CCG = XLSX.readdata(data_file, "Parc électrique", "H9") #€/MWh basé sur le tarif de prod de la centrale CCG gaz A MODIFIER
+Pmin_h2_CCG = XLSX.readdata(data_file, "Parc électrique", "F9") #MW idem
+Pmax_h2_CCG = XLSX.readdata(data_file, "Parc électrique", "E9") #MW idem
+dmin_CCG = XLSX.readdata(data_file, "Parc électrique", "G9") #hours idem
 
-#data for hydro reservoir
+capex_TAC_H2 = CAPEX[8]/1000 #€/MW
+opex_TAC_H2 = OPEX[8]/1000 #€/MW/year
+PU_cost_h2_TAC = XLSX.readdata(data_file, "Parc électrique", "H10") #€/MWh basé sur le tarif de prod de la centrale TAC gaz A MODIFIER
+Pmin_h2_TAC = XLSX.readdata(data_file, "Parc électrique", "F10") #MW idem
+Pmax_h2_TAC = XLSX.readdata(data_file, "Parc électrique", "E10") #MW idem
+dmin_TAC = XLSX.readdata(data_file, "Parc électrique", "G10") #hours idem
+
+## temporary
+NH2_max = 10
+
+Pmin_h2 = Pmin_h2_CCG*ones(NH2_max)
+Pmax_h2 = Pmax_h2_CCG*ones(NH2_max)
+dmin = dmin_CCG*ones(Int, NH2_max)
+
+
+#data for hydro reservoir "lacs"
 Nhy = 1 #number of hydro generation units
-Pmin_hy = zeros(Nhy)
-Pmax_hy = XLSX.readdata(data_file, "data", "R4") *ones(Nhy) #MW
-e_hy = XLSX.readdata(data_file, "data", "S4")*ones(Nhy) #MWh
+Pmin_hy_lacs = zeros(Nhy)
+Pmax_hy_lacs = XLSX.readdata(data_file, "Parc électrique", "C20") *ones(Nhy) #MW
+e_hy_lacs = Usable_per_week_hydro_lacs*ones(Nhy) #MWh
+
 
 # variable costs
-ch2 = repeat(costs_h2', Tmax) #cost of hydrogen generation €/MWh
-cuns = 5000*ones(Tmax) #cost of unsupplied energy €/MWh
-cexc = 0*ones(Tmax) #cost of in excess energy €/MWh
+cuns = XLSX.readdata(data_file, "Defaillance", "B2") #cost of unsupplied energy €/MWh
+cexc = XLSX.readdata(data_file, "Defaillance", "B3") #cost of in excess energy €/MWh
 
-#investment costs
-capex_onshore = XLSX.readdata(data_file, "Investissements", "B2") #€/MW
-capex_offshore_fixed = XLSX.readdata(data_file, "Investissements", "B3") #€/MW
-capex_offshore_floating = XLSX.readdata(data_file, "Investissements", "B4") #€/MW
-capex_solar_ground = XLSX.readdata(data_file, "Investissements", "B5") #€/MW
-capex_solar_big_roof = XLSX.readdata(data_file, "Investissements", "B6") #€/MW
-capex_solar_small_roof = XLSX.readdata(data_file, "Investissements", "B7") #€/MW
-capex_CCG_H2 = XLSX.readdata(data_file, "Investissements", "B8") #€/MW
-capex_TAC_H2 = XLSX.readdata(data_file, "Investissements", "B9") #€/MW
-capex_electrolyser_H2 = XLSX.readdata(data_file, "Investissements", "B10") #€/MW
-capex_2h_battery = XLSX.readdata(data_file, "Investissements", "B11") #€/MW
+ #investment costs 
+capex_onshore = CAPEX[1]/1000 #€/MW
+capex_offshore = CAPEX[2]/1000 #€/MW
+capex_solar = CAPEX[4]/1000 #€/MW
+capex_2h_battery = CAPEX[10]/1000 #€/MW
 
-#fixed opex 
-opex_onshore = XLSX.readdata(data_file, "Investissements", "C2") #€/MW/year
-opex_offshore_fixed = XLSX.readdata(data_file, "Investissements", "C3") #€/MW/year
-opex_offshore_floating = XLSX.readdata(data_file, "Investissements", "C4") #€/MW/year
-opex_solar_ground = XLSX.readdata(data_file, "Investissements", "C5") #€/MW/year
-opex_solar_big_roof = XLSX.readdata(data_file, "Investissements", "C6") #€/MW/year
-opex_solar_small_roof = XLSX.readdata(data_file, "Investissements", "C7") #€/MW/year
-opex_CCG_H2 = XLSX.readdata(data_file, "Investissements", "C8") #€/MW/year
-opex_TAC_H2 = XLSX.readdata(data_file, "Investissements", "C9") #€/MW/year
-opex_electrolyser_H2 = XLSX.readdata(data_file, "Investissements", "C10") #€/MW/year
-opex_2h_battery = XLSX.readdata(data_file, "Investissements", "C11") #€/MW/year
+opex_onshore = OPEX[1]/1000 #€/MW
+opex_offshore = OPEX[2]/1000 #€/MW
+opex_solar = OPEX[4]/1000 #€/MW
+opex_2h_battery = OPEX[10]/1000 #€/MW
+
+
+
+
+
+
+
+# capex_offshore_fixed = XLSX.readdata(data_file, "Investissements", "B3") #€/MW
+# capex_offshore_floating = XLSX.readdata(data_file, "Investissements", "B4") #€/MW
+# capex_solar_ground = XLSX.readdata(data_file, "Investissements", "B5") #€/MW
+# capex_solar_big_roof = XLSX.readdata(data_file, "Investissements", "B6") #€/MW
+# capex_solar_small_roof = XLSX.readdata(data_file, "Investissements", "B7") #€/MW
+# capex_CCG_H2 = XLSX.readdata(data_file, "Investissements", "B8") #€/MW
+# capex_TAC_H2 = XLSX.readdata(data_file, "Investissements", "B9") #€/MW
+# capex_electrolyser_H2 = XLSX.readdata(data_file, "Investissements", "B10") #€/MW
+# capex_2h_battery = XLSX.readdata(data_file, "Investissements", "B11") #€/MW
+
+# #fixed opex 
+# opex_onshore = XLSX.readdata(data_file, "Investissements", "C2") #€/MW/year
+# opex_offshore_fixed = XLSX.readdata(data_file, "Investissements", "C3") #€/MW/year
+# opex_offshore_floating = XLSX.readdata(data_file, "Investissements", "C4") #€/MW/year
+# opex_solar_ground = XLSX.readdata(data_file, "Investissements", "C5") #€/MW/year
+# opex_solar_big_roof = XLSX.readdata(data_file, "Investissements", "C6") #€/MW/year
+# opex_solar_small_roof = XLSX.readdata(data_file, "Investissements", "C7") #€/MW/year
+# opex_CCG_H2 = XLSX.readdata(data_file, "Investissements", "C8") #€/MW/year
+# opex_TAC_H2 = XLSX.readdata(data_file, "Investissements", "C9") #€/MW/year
+# opex_electrolyser_H2 = XLSX.readdata(data_file, "Investissements", "C10") #€/MW/year
+# opex_2h_battery = XLSX.readdata(data_file, "Investissements", "C11") #€/MW/year
 
 #data for STEP/battery
 #weekly STEP
-Pmax_STEP = XLSX.readdata(data_file, "data", "R5") #MW
-rSTEP = XLSX.readdata(data_file, "data", "T5")
+Pmax_STEP = XLSX.readdata(data_file, "Parc électrique", "C21") #MW
+rSTEP = XLSX.readdata(data_file, "STEP", "B3") #rendement
 
 #battery
-Pmax_battery = 280 #MW
-rbattery = 0.85
-d_battery = 2 #hours
+rbattery = XLSX.readdata(data_file, "Batteries", "B5") # rendement de la batterie au sockage ou au destockage
+d_battery = XLSX.readdata(data_file, "Batteries", "B2") #hours
+CapaBattery_init = 0 #MW
+
+
+
+
+
+#############################
+# Verification of loaded data
+
+println("=== Vérification des données chargées ===")
+
+@show load
+@show offshore_load_factor
+@show onshore_load_factor
+@show solar_load_factor
+@show hydro_fatal
+@show Pres
+@show thermique_fatal
+
+@show Usable_per_week_hydro_lacs
+@show Usable_per_week_hydro_STEP
+
+@show CapaSolar_init
+@show CapaOffshore_init
+@show CapaOnshore_init
+
+@show CAPEX
+@show OPEX
+@show Duree_vie
+
+@show capex_CCG_H2
+@show opex_CCG_H2
+@show PU_cost_h2_CCG
+@show Pmin_h2_CCG
+@show Pmax_h2_CCG
+@show dmin_CCG
+
+@show capex_TAC_H2
+@show opex_TAC_H2
+@show PU_cost_h2_TAC
+@show Pmin_h2_TAC
+@show Pmax_h2_TAC
+@show dmin_TAC
+
+@show Pmin_h2
+@show Pmax_h2
+@show dmin
+
+@show Nhy
+@show Pmin_hy_lacs
+@show Pmax_hy_lacs
+@show e_hy_lacs
+
+@show cuns
+@show cexc
+
+@show capex_onshore
+@show capex_offshore
+@show capex_solar
+@show capex_2h_battery
+
+@show opex_onshore
+@show opex_offshore
+@show opex_solar
+@show opex_2h_battery
+
+@show Pmax_STEP
+@show rSTEP
+
+@show rbattery
+@show d_battery
+@show CapaBattery_init
+
+println("=== Fin de la vérification ===")
 
 
 #############################
@@ -119,19 +238,26 @@ NH2_max = 10 # nombre maximum d'unités de production d'hydrogène
 @variable(model, Pdecharge_STEP[1:Tmax] >= 0)
 @variable(model, stock_STEP[1:Tmax] >= 0)
 # #battery variables
+@variable(model, CapaBattery >= 0, start = CapaBattery_init)
 @variable(model, Pcharge_battery[1:Tmax] >= 0)
 @variable(model, Pdecharge_battery[1:Tmax] >= 0)
 @variable(model, stock_battery[1:Tmax] >= 0)
 # #############################
 #define the objective function
 #############################
-@objective(model, Min, sum(Phy[t,h]*chy[h] for t in 1:Tmax, h in 1:Nhy) + sum(PH2[t,g]*cH2[g] for t in 1:Tmax, g in 1:NH2_max) + sum(Puns[t]*cuns[t] for t in 1:Tmax) + sum(Pexc[t]*cexc[t] for t in 1:Tmax))
+@objective(model, Min, 
+                        CapaSolar*(capex_solar + opex_solar) + CapaOffshore*(capex_offshore + opex_offshore) + CapaOnshore*(capex_onshore + opex_onshore) 
+                        + CapaBattery*(capex_2h_battery + opex_2h_battery) 
+                        + sum(H2installed[g]*Pmax_h2[g] for g in 1:NH2_max)*(capex_CCG_H2 + opex_CCG_H2) + sum(PH2[t,g] for t in 1:Tmax, g in 1:NH2_max)*PU_cost_h2_CCG
+                        + sum(Puns[t] for t in 1:Tmax)*cuns + sum(Pexc[t] for t in 1:Tmax)*cexc
+)
+
 
 #############################
 #define the constraints
 #############################
 #balance constraint
-@constraint(model, balance[t in 1:Tmax], sum(PH2[t,g] for g in 1:NH2_max) + sum(Phy[t,h] for h in 1:Nhy) + CapaSolaire * solar_load_factor[t] + CapaOffshore * offshore_load_factor[t] + CapaOnshore * onshore_load_factor[t] + Puns[t] - load[t] - Pexc[t] - Pcharge_STEP[t] + Pdecharge_STEP[t] - Pcharge_battery[t] + Pdecharge_battery[t] == 0)
+@constraint(model, balance[t in 1:Tmax], sum(PH2[t,g] for g in 1:NH2_max) + sum(Phy[t,h] for h in 1:Nhy) + CapaSolar * solar_load_factor[t] + CapaOffshore * offshore_load_factor[t] + CapaOnshore * onshore_load_factor[t] + Puns[t] - load[t] - Pexc[t] - Pcharge_STEP[t] + Pdecharge_STEP[t] - Pcharge_battery[t] + Pdecharge_battery[t] == 0)
 
 # H2 Power constraints
 @constraint(model, max_H2[t in 1:Tmax, i in 1:NH2_max], PH2[t,i] <= Pmax_h2[i]*H2running[t,i]) #Pmax constraints
@@ -175,86 +301,27 @@ RendementCombustion = 0.5 # Rendement de la combustion de l'hydrogène
 @constraint(model, stock_max_STEP[t in 1:Tmax], stock_STEP[t] <= 24*7*Pmax_STEP)
 
 # #battery
-@constraint(model, Pcharge_max_battery[t in 1:Tmax], Pcharge_battery[t] <= Pmax_battery)
-@constraint(model, Pdecharge_max_battery[t in 1:Tmax], Pdecharge_battery[t] <= Pmax_battery)
+@constraint(model, Pcharge_max_battery[t in 1:Tmax], Pcharge_battery[t] <= CapaBattery)
+@constraint(model, Pdecharge_max_battery[t in 1:Tmax], Pdecharge_battery[t] <= CapaBattery)
 @constraint(model, init_stock_battery, stock_battery[1] == 0)
 @constraint(model, end_Pdecharge_battery, Pdecharge_battery[Tmax] <= stock_battery[Tmax])
 @constraint(model, Tmax_stock_battery, stock_battery[Tmax] == stock_battery[1])
 @constraint(model, init_Pdecharge_battery, Pdecharge_battery[1] == 0)
 @constraint(model, evol_stock_battery[t in 1:Tmax-1], stock_battery[t+1]-stock_battery[t]- rbattery*Pcharge_battery[t]+1/rbattery*Pdecharge_battery[t]== 0)
-@constraint(model, stock_max_battery[t in 1:Tmax], stock_battery[t] <= d_battery*Pmax_battery)
+@constraint(model, stock_max_battery[t in 1:Tmax], stock_battery[t] <= d_battery*CapaBattery)
 
 
 
-##############################################################################################################################################################
-#
-# #############################
-#define the objective function
-#############################
-@objective(model, Min, sum(Pth.*cth)+sum(Phy.*chy)+sum(PH2.*cH2)+Puns'cuns+Pexc'cexc)
-
-#############################
-#define the constraints
-#############################
-#balance constraint
-@constraint(model, balance[t in 1:Tmax], sum(Pth[t,g] for g in 1:Nth) + sum(Phy[t,h] for h in 1:Nhy) + Pres[t] + Puns[t] - load[t] - Pexc[t] - Pcharge_STEP[t] + Pdecharge_STEP[t] - Pcharge_battery[t] + Pdecharge_battery[t] == 0)
-# H2 constraints
-@constraint(model, max_th[t in 1:Tmax, g in 1:Nth], Pth[t,g] <= Pmax_th[g]*UCth[t,g])
-#thermal unit Pmin constraints
-@constraint(model, min_th[t in 1:Tmax, g in 1:Nth], Pmin_th[g]*UCth[t,g] <= Pth[t,g])
-#thermal unit Dmin constraints
-for g in 1:Nth
-        if (dmin[g] > 1)
-            @constraint(model, [t in 2:Tmax], UCth[t,g]-UCth[t-1,g]==UPth[t,g]-DOth[t,g],  base_name = "fct_th_$g")
-            @constraint(model, [t in 1:Tmax], UPth[t]+DOth[t]<=1,  base_name = "UPDOth_$g")
-            @constraint(model, UPth[1,g]==0,  base_name = "iniUPth_$g")
-            @constraint(model, DOth[1,g]==0,  base_name = "iniDOth_$g")
-            @constraint(model, [t in dmin[g]:Tmax], UCth[t,g] >= sum(UPth[i,g] for i in (t-dmin[g]+1):t),  base_name = "dminUPth_$g")
-            @constraint(model, [t in dmin[g]:Tmax], UCth[t,g] <= 1 - sum(DOth[i,g] for i in (t-dmin[g]+1):t),  base_name = "dminDOth_$g")
-            @constraint(model, [t in 1:dmin[g]-1], UCth[t,g] >= sum(UPth[i,g] for i in 1:t), base_name = "dminUPth_$(g)_init")
-            @constraint(model, [t in 1:dmin[g]-1], UCth[t,g] <= 1-sum(DOth[i,g] for i in 1:t), base_name = "dminDOth_$(g)_init")
-    end
-end
-
-#hydro unit constraints
-@constraint(model, bounds_hy[t in 1:Tmax, h in 1:Nhy], Pmin_hy[h] <= Phy[t,h] <= Pmax_hy[h])
-#hydro stock constraint
-@constraint(model, stock_hy[h in 1:Nhy], sum(Phy[t,h] for t in 1:Tmax) <= e_hy[h])
-
-#weekly STEP
-@constraint(model, Pcharge_max_STEP[t in 1:Tmax], Pcharge_STEP[t] <= Pmax_STEP)
-@constraint(model, Pdecharge_max_STEP[t in 1:Tmax], Pdecharge_STEP[t] <= Pmax_STEP)
-@constraint(model, init_stock_STEP, stock_STEP[1] == 0)
-@constraint(model, end_Pdecharge_STEP, Pdecharge_STEP[Tmax] <= stock_STEP[Tmax])
-@constraint(model, Tmax_stock_STEP, stock_STEP[Tmax] == stock_STEP[1])
-@constraint(model, init_Pdecharge_STEP, Pdecharge_STEP[1] == 0)
-@constraint(model, evol_stock_STEP[t in 1:Tmax-1], stock_STEP[t+1]-stock_STEP[t]- rSTEP*Pcharge_STEP[t]+Pdecharge_STEP[t]== 0)
-@constraint(model, stock_max_STEP[t in 1:Tmax], stock_STEP[t] <= 24*7*Pmax_STEP)
-
-# #battery
-@constraint(model, Pcharge_max_battery[t in 1:Tmax], Pcharge_battery[t] <= Pmax_battery)
-@constraint(model, Pdecharge_max_battery[t in 1:Tmax], Pdecharge_battery[t] <= Pmax_battery)
-@constraint(model, init_stock_battery, stock_battery[1] == 0)
-@constraint(model, end_Pdecharge_battery, Pdecharge_battery[Tmax] <= stock_battery[Tmax])
-@constraint(model, Tmax_stock_battery, stock_battery[Tmax] == stock_battery[1])
-@constraint(model, init_Pdecharge_battery, Pdecharge_battery[1] == 0)
-@constraint(model, evol_stock_battery[t in 1:Tmax-1], stock_battery[t+1]-stock_battery[t]- rbattery*Pcharge_battery[t]+1/rbattery*Pdecharge_battery[t]== 0)
-@constraint(model, stock_max_battery[t in 1:Tmax], stock_battery[t] <= d_battery*Pmax_battery)
-
-
-
-
-#TODO: solve and analyse the results
-#solve the model
+# solve the model
 optimize!(model)
-#------------------------------
+
 #Results
 @show termination_status(model)
 @show objective_value(model)
 
 
 #exports results as csv file
-th_gen = value.(Pth)
+th_gen = value.(PH2)
 hy_gen = value.(Phy)
 STEP_charge = value.(Pcharge_STEP)
 STEP_decharge = value.(Pdecharge_STEP)
@@ -274,7 +341,7 @@ end
 write(f, "Hydro;STEP pompage;STEP turbinage;Batterie injection;Batterie soutirage;RES;load;Net load\n")
 
 for t in 1:Tmax
-    for g in 1:Nth
+    for g in 1:NH2_max
         write(f, "$(th_gen[t,g]);")
     end
     for h in 1:Nhy
@@ -287,3 +354,106 @@ for t in 1:Tmax
 end
 
 close(f)
+
+
+# ##############################################################################################################################################################
+# #
+# # #############################
+# #define the objective function
+# #############################
+# @objective(model, Min, sum(Pth.*cth)+sum(Phy.*chy)+sum(PH2.*cH2)+Puns'cuns+Pexc'cexc)
+
+# #############################
+# #define the constraints
+# #############################
+# #balance constraint
+# @constraint(model, balance[t in 1:Tmax], sum(Pth[t,g] for g in 1:Nth) + sum(Phy[t,h] for h in 1:Nhy) + Pres[t] + Puns[t] - load[t] - Pexc[t] - Pcharge_STEP[t] + Pdecharge_STEP[t] - Pcharge_battery[t] + Pdecharge_battery[t] == 0)
+# # H2 constraints
+# @constraint(model, max_th[t in 1:Tmax, g in 1:Nth], Pth[t,g] <= Pmax_th[g]*UCth[t,g])
+# #thermal unit Pmin constraints
+# @constraint(model, min_th[t in 1:Tmax, g in 1:Nth], Pmin_th[g]*UCth[t,g] <= Pth[t,g])
+# #thermal unit Dmin constraints
+# for g in 1:Nth
+#         if (dmin[g] > 1)
+#             @constraint(model, [t in 2:Tmax], UCth[t,g]-UCth[t-1,g]==UPth[t,g]-DOth[t,g],  base_name = "fct_th_$g")
+#             @constraint(model, [t in 1:Tmax], UPth[t]+DOth[t]<=1,  base_name = "UPDOth_$g")
+#             @constraint(model, UPth[1,g]==0,  base_name = "iniUPth_$g")
+#             @constraint(model, DOth[1,g]==0,  base_name = "iniDOth_$g")
+#             @constraint(model, [t in dmin[g]:Tmax], UCth[t,g] >= sum(UPth[i,g] for i in (t-dmin[g]+1):t),  base_name = "dminUPth_$g")
+#             @constraint(model, [t in dmin[g]:Tmax], UCth[t,g] <= 1 - sum(DOth[i,g] for i in (t-dmin[g]+1):t),  base_name = "dminDOth_$g")
+#             @constraint(model, [t in 1:dmin[g]-1], UCth[t,g] >= sum(UPth[i,g] for i in 1:t), base_name = "dminUPth_$(g)_init")
+#             @constraint(model, [t in 1:dmin[g]-1], UCth[t,g] <= 1-sum(DOth[i,g] for i in 1:t), base_name = "dminDOth_$(g)_init")
+#     end
+# end
+
+# #hydro unit constraints
+# @constraint(model, bounds_hy[t in 1:Tmax, h in 1:Nhy], Pmin_hy[h] <= Phy[t,h] <= Pmax_hy[h])
+# #hydro stock constraint
+# @constraint(model, stock_hy[h in 1:Nhy], sum(Phy[t,h] for t in 1:Tmax) <= e_hy[h])
+
+# #weekly STEP
+# @constraint(model, Pcharge_max_STEP[t in 1:Tmax], Pcharge_STEP[t] <= Pmax_STEP)
+# @constraint(model, Pdecharge_max_STEP[t in 1:Tmax], Pdecharge_STEP[t] <= Pmax_STEP)
+# @constraint(model, init_stock_STEP, stock_STEP[1] == 0)
+# @constraint(model, end_Pdecharge_STEP, Pdecharge_STEP[Tmax] <= stock_STEP[Tmax])
+# @constraint(model, Tmax_stock_STEP, stock_STEP[Tmax] == stock_STEP[1])
+# @constraint(model, init_Pdecharge_STEP, Pdecharge_STEP[1] == 0)
+# @constraint(model, evol_stock_STEP[t in 1:Tmax-1], stock_STEP[t+1]-stock_STEP[t]- rSTEP*Pcharge_STEP[t]+Pdecharge_STEP[t]== 0)
+# @constraint(model, stock_max_STEP[t in 1:Tmax], stock_STEP[t] <= 24*7*Pmax_STEP)
+
+# # #battery
+# @constraint(model, Pcharge_max_battery[t in 1:Tmax], Pcharge_battery[t] <= Pmax_battery)
+# @constraint(model, Pdecharge_max_battery[t in 1:Tmax], Pdecharge_battery[t] <= Pmax_battery)
+# @constraint(model, init_stock_battery, stock_battery[1] == 0)
+# @constraint(model, end_Pdecharge_battery, Pdecharge_battery[Tmax] <= stock_battery[Tmax])
+# @constraint(model, Tmax_stock_battery, stock_battery[Tmax] == stock_battery[1])
+# @constraint(model, init_Pdecharge_battery, Pdecharge_battery[1] == 0)
+# @constraint(model, evol_stock_battery[t in 1:Tmax-1], stock_battery[t+1]-stock_battery[t]- rbattery*Pcharge_battery[t]+1/rbattery*Pdecharge_battery[t]== 0)
+# @constraint(model, stock_max_battery[t in 1:Tmax], stock_battery[t] <= d_battery*Pmax_battery)
+
+
+
+
+# #TODO: solve and analyse the results
+# #solve the model
+# optimize!(model)
+# #------------------------------
+# #Results
+# @show termination_status(model)
+# @show objective_value(model)
+
+
+# #exports results as csv file
+# th_gen = value.(Pth)
+# hy_gen = value.(Phy)
+# STEP_charge = value.(Pcharge_STEP)
+# STEP_decharge = value.(Pdecharge_STEP)
+# battery_charge = value.(Pcharge_battery)
+# battery_decharge = value.(Pdecharge_battery)
+
+
+# # new file created
+# touch("results.csv")
+
+# # file handling in write mode
+# f = open("results.csv", "w")
+
+# for name in names
+#     write(f, "$name ;")
+# end
+# write(f, "Hydro;STEP pompage;STEP turbinage;Batterie injection;Batterie soutirage;RES;load;Net load\n")
+
+# for t in 1:Tmax
+#     for g in 1:Nth
+#         write(f, "$(th_gen[t,g]);")
+#     end
+#     for h in 1:Nhy
+#         write(f, "$(hy_gen[t,h]) ;")
+#     end
+#     write(f, "$(STEP_charge[t]);$(STEP_decharge[t]) ;")
+#     write(f, "$(battery_charge[t]);$(battery_decharge[t]) ;")
+#     write(f, "$(Pres[t]); $(load[t]);$(load[t]-Pres[t]) \n")
+
+# end
+
+# close(f)
