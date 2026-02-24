@@ -95,7 +95,7 @@ opex_2h_battery = OPEX[10]*1000 #€/MW
 #data for STEP/battery
 #weekly STEP
 Pmax_STEP = XLSX.readdata(data_file, "Parc électrique", "C21") #MW
-rSTEP = XLSX.readdata(data_file, "Rendements", "B10") #rendement
+rSTEP = XLSX.readdata(data_file, "Rendements", "B10") #rendement au pompage 
 
 #battery
 rbattery = XLSX.readdata(data_file, "Rendements", "B9") # rendement de la batterie au sockage ou au destockage
@@ -111,67 +111,67 @@ CapaBattery_init = 0 #MW
 
 println("=== Vérification des données chargées ===")
 
-@show load
-@show offshore_load_factor
-@show onshore_load_factor
-@show solar_load_factor
-@show hydro_fatal
-@show Pres
-@show thermique_fatal
+# @show load
+# @show offshore_load_factor
+# @show onshore_load_factor
+# @show solar_load_factor
+# @show hydro_fatal
+# @show Pres
+# @show thermique_fatal
 
-@show Usable_per_week_hydro_lacs
-@show Usable_per_week_hydro_STEP
+# @show Usable_per_week_hydro_lacs
+# @show Usable_per_week_hydro_STEP
 
-@show CapaSolar_init
-@show CapaOffshore_init
-@show CapaOnshore_init
+# @show CapaSolar_init
+# @show CapaOffshore_init
+# @show CapaOnshore_init
 
-@show CAPEX
-@show OPEX
-@show Duree_vie
+# @show CAPEX
+# @show OPEX
+# @show Duree_vie
 
-@show capex_CCG_H2
-@show opex_CCG_H2
-@show PU_cost_h2_CCG
-@show Pmin_h2_CCG
-@show Pmax_h2_CCG
-@show dmin_CCG
+# @show capex_CCG_H2
+# @show opex_CCG_H2
+# @show PU_cost_h2_CCG
+# @show Pmin_h2_CCG
+# @show Pmax_h2_CCG
+# @show dmin_CCG
 
-@show capex_TAC_H2
-@show opex_TAC_H2
-@show PU_cost_h2_TAC
-@show Pmin_h2_TAC
-@show Pmax_h2_TAC
-@show dmin_TAC
+# @show capex_TAC_H2
+# @show opex_TAC_H2
+# @show PU_cost_h2_TAC
+# @show Pmin_h2_TAC
+# @show Pmax_h2_TAC
+# @show dmin_TAC
 
-@show Pmin_h2
-@show Pmax_h2
-@show dmin
+# @show Pmin_h2
+# @show Pmax_h2
+# @show dmin
 
-@show Nhy
-@show Pmin_hy_lacs
-@show Pmax_hy_lacs
-@show e_hy_lacs
+# @show Nhy
+# @show Pmin_hy_lacs
+# @show Pmax_hy_lacs
+# @show e_hy_lacs
 
-@show cuns
-@show cexc
+# @show cuns
+# @show cexc
 
-@show capex_onshore
-@show capex_offshore
-@show capex_solar
-@show capex_2h_battery
+# @show capex_onshore
+# @show capex_offshore
+# @show capex_solar
+# @show capex_2h_battery
 
-@show opex_onshore
-@show opex_offshore
-@show opex_solar
-@show opex_2h_battery
+# @show opex_onshore
+# @show opex_offshore
+# @show opex_solar
+# @show opex_2h_battery
 
-@show Pmax_STEP
-@show rSTEP
+# @show Pmax_STEP
+# @show rSTEP
 
-@show rbattery
-@show d_battery
-@show CapaBattery_init
+# @show rbattery
+# @show d_battery
+# @show CapaBattery_init
 
 println("=== Fin de la vérification ===")
 
@@ -262,12 +262,12 @@ end
 # H2 volume constraints
 RendementElectrolyse = 0.7 # Rendement de l'électrolyse
 RendementCombustion = 0.5 # Rendement de la combustion de l'hydrogène
-@constraint(model, volume_H2, sum(PH2[t,g] for t in 1:Tmax, g in 1:NH2_max) <= sum(Pexc[t] for t in 1:Tmax)*RendementCombustion*RendementElectrolyse)
+@constraint(model, sum(PH2[t,g] for t in 1:Tmax, g in 1:NH2_max) <= sum(Pexc[t] for t in 1:Tmax)*RendementCombustion*RendementElectrolyse)
 
 # hydro unit constraints
-@constraint(model, bounds_hy[t in 1:Tmax, h in 1:Nhy], Pmin_hy[h] <= Phy[t,h] <= Pmax_hy[h])
+@constraint(model, [t in 1:Tmax, h in 1:Nhy], Pmin_hy_lacs[h] <= Phy[t,h] <= Pmax_hy_lacs[h])
 # hydro stock constraint
-@constraint(model, stock_hy[h in 1:Nhy], sum(Phy[t,h] for t in 1:Tmax) <= e_hy_week[h])
+@constraint(model, stock_hy[h in 1:Nhy], sum(Phy[t,h] for t in 1:Tmax) <= e_hy_lacs[h])
 
 # weekly STEP
 @constraint(model, Pcharge_max_STEP[t in 1:Tmax], Pcharge_STEP[t] <= Pmax_STEP)
@@ -314,9 +314,9 @@ touch("results.csv")
 # file handling in write mode
 f = open("results.csv", "w")
 
-for name in names
-    write(f, "$name ;")
-end
+# for name in names
+#     write(f, "$name ;")
+# end
 write(f, "Hydro;STEP pompage;STEP turbinage;Batterie injection;Batterie soutirage;RES;load;Net load\n")
 
 for t in 1:Tmax
@@ -334,7 +334,7 @@ end
 
 close(f)
 
-
+end
 # ##############################################################################################################################################################
 # #
 # # #############################
