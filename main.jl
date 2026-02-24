@@ -267,27 +267,27 @@ RendementCombustion = 0.5 # Rendement de la combustion de l'hydrogène
 # hydro unit constraints
 @constraint(model, [t in 1:Tmax, h in 1:Nhy], Pmin_hy_lacs[h] <= Phy[t,h] <= Pmax_hy_lacs[h])
 # hydro stock constraint
-@constraint(model, stock_hy[h in 1:Nhy], sum(Phy[t,h] for t in 1:Tmax) <= e_hy_lacs[h])
+@constraint(model, [h in 1:Nhy], sum(Phy[t,h] for t in 1:Tmax) <= e_hy_lacs[h])
 
 # weekly STEP
-@constraint(model, Pcharge_max_STEP[t in 1:Tmax], Pcharge_STEP[t] <= Pmax_STEP)
-@constraint(model, Pdecharge_max_STEP[t in 1:Tmax], Pdecharge_STEP[t] <= Pmax_STEP)
-@constraint(model, init_stock_STEP, stock_STEP[1] == 0)
-@constraint(model, end_Pdecharge_STEP, Pdecharge_STEP[Tmax] <= stock_STEP[Tmax])
-@constraint(model, Tmax_stock_STEP, stock_STEP[Tmax] == stock_STEP[1])
-@constraint(model, init_Pdecharge_STEP, Pdecharge_STEP[1] == 0)
-@constraint(model, evol_stock_STEP[t in 1:Tmax-1], stock_STEP[t+1]-stock_STEP[t]- rSTEP*Pcharge_STEP[t]+Pdecharge_STEP[t]== 0)
-@constraint(model, stock_max_STEP[t in 1:Tmax], stock_STEP[t] <= 24*7*Pmax_STEP)
+@constraint(model, [t in 1:Tmax], Pcharge_STEP[t] <= Pmax_STEP)
+@constraint(model, [t in 1:Tmax], Pdecharge_STEP[t] <= Pmax_STEP)
+@constraint(model, stock_STEP[1] == 0)
+@constraint(model, Pdecharge_STEP[Tmax] <= stock_STEP[Tmax])
+@constraint(model, stock_STEP[Tmax] == stock_STEP[1])
+@constraint(model, Pdecharge_STEP[1] == 0)
+@constraint(model, [t in 1:Tmax-1], stock_STEP[t+1]-stock_STEP[t]- rSTEP*Pcharge_STEP[t]+Pdecharge_STEP[t]== 0)
+@constraint(model, [t in 1:Tmax], stock_STEP[t] <= 24*7*Pmax_STEP)
 
 # #battery
-@constraint(model, Pcharge_max_battery[t in 1:Tmax], Pcharge_battery[t] <= CapaBattery)
-@constraint(model, Pdecharge_max_battery[t in 1:Tmax], Pdecharge_battery[t] <= CapaBattery)
-@constraint(model, init_stock_battery, stock_battery[1] == 0)
-@constraint(model, end_Pdecharge_battery, Pdecharge_battery[Tmax] <= stock_battery[Tmax])
-@constraint(model, Tmax_stock_battery, stock_battery[Tmax] == stock_battery[1])
-@constraint(model, init_Pdecharge_battery, Pdecharge_battery[1] == 0)
-@constraint(model, evol_stock_battery[t in 1:Tmax-1], stock_battery[t+1]-stock_battery[t]- rbattery*Pcharge_battery[t]+1/rbattery*Pdecharge_battery[t]== 0)
-@constraint(model, stock_max_battery[t in 1:Tmax], stock_battery[t] <= d_battery*CapaBattery)
+@constraint(model, [t in 1:Tmax], Pcharge_battery[t] <= CapaBattery)
+@constraint(model, [t in 1:Tmax], Pdecharge_battery[t] <= CapaBattery)
+@constraint(model, stock_battery[1] == 0)
+@constraint(model, Pdecharge_battery[Tmax] <= stock_battery[Tmax])
+@constraint(model, stock_battery[Tmax] == stock_battery[1])
+@constraint(model, Pdecharge_battery[1] == 0)
+@constraint(model, [t in 1:Tmax-1], stock_battery[t+1]-stock_battery[t]- rbattery*Pcharge_battery[t]+1/rbattery*Pdecharge_battery[t]== 0)
+@constraint(model, [t in 1:Tmax], stock_battery[t] <= d_battery*CapaBattery)
 
 
 
@@ -320,119 +320,13 @@ f = open("results.csv", "w")
 write(f, "Hydro;STEP pompage;STEP turbinage;Batterie injection;Batterie soutirage;RES;load;Net load\n")
 
 for t in 1:Tmax
-    for g in 1:NH2_max
-        write(f, "$(th_gen[t,g]);")
-    end
-    for h in 1:Nhy
-        write(f, "$(hy_gen[t,h]) ;")
-    end
-    write(f, "$(STEP_charge[t]);$(STEP_decharge[t]) ;")
-    write(f, "$(battery_charge[t]);$(battery_decharge[t]) ;")
-    write(f, "$(Pres[t]); $(load[t]);$(load[t]-Pres[t]) \n")
+    write(f, "$(sum(hy_gen[t, h] for h in 1:Nhy));")
+    write(f, "$(STEP_charge[t]);$(STEP_decharge[t]);")
+    write(f, "$(battery_charge[t]);$(battery_decharge[t]);")
+    write(f, "$(Pres[t]);$(load[t]);$(load[t]-Pres[t]) \n")
 
 end
 
 close(f)
 
 end
-# ##############################################################################################################################################################
-# #
-# # #############################
-# #define the objective function
-# #############################
-# @objective(model, Min, sum(Pth.*cth)+sum(Phy.*chy)+sum(PH2.*cH2)+Puns'cuns+Pexc'cexc)
-
-# #############################
-# #define the constraints
-# #############################
-# #balance constraint
-# @constraint(model, balance[t in 1:Tmax], sum(Pth[t,g] for g in 1:Nth) + sum(Phy[t,h] for h in 1:Nhy) + Pres[t] + Puns[t] - load[t] - Pexc[t] - Pcharge_STEP[t] + Pdecharge_STEP[t] - Pcharge_battery[t] + Pdecharge_battery[t] == 0)
-# # H2 constraints
-# @constraint(model, max_th[t in 1:Tmax, g in 1:Nth], Pth[t,g] <= Pmax_th[g]*UCth[t,g])
-# #thermal unit Pmin constraints
-# @constraint(model, min_th[t in 1:Tmax, g in 1:Nth], Pmin_th[g]*UCth[t,g] <= Pth[t,g])
-# #thermal unit Dmin constraints
-# for g in 1:Nth
-#         if (dmin[g] > 1)
-#             @constraint(model, [t in 2:Tmax], UCth[t,g]-UCth[t-1,g]==UPth[t,g]-DOth[t,g],  base_name = "fct_th_$g")
-#             @constraint(model, [t in 1:Tmax], UPth[t]+DOth[t]<=1,  base_name = "UPDOth_$g")
-#             @constraint(model, UPth[1,g]==0,  base_name = "iniUPth_$g")
-#             @constraint(model, DOth[1,g]==0,  base_name = "iniDOth_$g")
-#             @constraint(model, [t in dmin[g]:Tmax], UCth[t,g] >= sum(UPth[i,g] for i in (t-dmin[g]+1):t),  base_name = "dminUPth_$g")
-#             @constraint(model, [t in dmin[g]:Tmax], UCth[t,g] <= 1 - sum(DOth[i,g] for i in (t-dmin[g]+1):t),  base_name = "dminDOth_$g")
-#             @constraint(model, [t in 1:dmin[g]-1], UCth[t,g] >= sum(UPth[i,g] for i in 1:t), base_name = "dminUPth_$(g)_init")
-#             @constraint(model, [t in 1:dmin[g]-1], UCth[t,g] <= 1-sum(DOth[i,g] for i in 1:t), base_name = "dminDOth_$(g)_init")
-#     end
-# end
-
-# #hydro unit constraints
-# @constraint(model, bounds_hy[t in 1:Tmax, h in 1:Nhy], Pmin_hy[h] <= Phy[t,h] <= Pmax_hy[h])
-# #hydro stock constraint
-# @constraint(model, stock_hy[h in 1:Nhy], sum(Phy[t,h] for t in 1:Tmax) <= e_hy[h])
-
-# #weekly STEP
-# @constraint(model, Pcharge_max_STEP[t in 1:Tmax], Pcharge_STEP[t] <= Pmax_STEP)
-# @constraint(model, Pdecharge_max_STEP[t in 1:Tmax], Pdecharge_STEP[t] <= Pmax_STEP)
-# @constraint(model, init_stock_STEP, stock_STEP[1] == 0)
-# @constraint(model, end_Pdecharge_STEP, Pdecharge_STEP[Tmax] <= stock_STEP[Tmax])
-# @constraint(model, Tmax_stock_STEP, stock_STEP[Tmax] == stock_STEP[1])
-# @constraint(model, init_Pdecharge_STEP, Pdecharge_STEP[1] == 0)
-# @constraint(model, evol_stock_STEP[t in 1:Tmax-1], stock_STEP[t+1]-stock_STEP[t]- rSTEP*Pcharge_STEP[t]+Pdecharge_STEP[t]== 0)
-# @constraint(model, stock_max_STEP[t in 1:Tmax], stock_STEP[t] <= 24*7*Pmax_STEP)
-
-# # #battery
-# @constraint(model, Pcharge_max_battery[t in 1:Tmax], Pcharge_battery[t] <= Pmax_battery)
-# @constraint(model, Pdecharge_max_battery[t in 1:Tmax], Pdecharge_battery[t] <= Pmax_battery)
-# @constraint(model, init_stock_battery, stock_battery[1] == 0)
-# @constraint(model, end_Pdecharge_battery, Pdecharge_battery[Tmax] <= stock_battery[Tmax])
-# @constraint(model, Tmax_stock_battery, stock_battery[Tmax] == stock_battery[1])
-# @constraint(model, init_Pdecharge_battery, Pdecharge_battery[1] == 0)
-# @constraint(model, evol_stock_battery[t in 1:Tmax-1], stock_battery[t+1]-stock_battery[t]- rbattery*Pcharge_battery[t]+1/rbattery*Pdecharge_battery[t]== 0)
-# @constraint(model, stock_max_battery[t in 1:Tmax], stock_battery[t] <= d_battery*Pmax_battery)
-
-
-
-
-# #TODO: solve and analyse the results
-# #solve the model
-# optimize!(model)
-# #------------------------------
-# #Results
-# @show termination_status(model)
-# @show objective_value(model)
-
-
-# #exports results as csv file
-# th_gen = value.(Pth)
-# hy_gen = value.(Phy)
-# STEP_charge = value.(Pcharge_STEP)
-# STEP_decharge = value.(Pdecharge_STEP)
-# battery_charge = value.(Pcharge_battery)
-# battery_decharge = value.(Pdecharge_battery)
-
-
-# # new file created
-# touch("results.csv")
-
-# # file handling in write mode
-# f = open("results.csv", "w")
-
-# for name in names
-#     write(f, "$name ;")
-# end
-# write(f, "Hydro;STEP pompage;STEP turbinage;Batterie injection;Batterie soutirage;RES;load;Net load\n")
-
-# for t in 1:Tmax
-#     for g in 1:Nth
-#         write(f, "$(th_gen[t,g]);")
-#     end
-#     for h in 1:Nhy
-#         write(f, "$(hy_gen[t,h]) ;")
-#     end
-#     write(f, "$(STEP_charge[t]);$(STEP_decharge[t]) ;")
-#     write(f, "$(battery_charge[t]);$(battery_decharge[t]) ;")
-#     write(f, "$(Pres[t]); $(load[t]);$(load[t]-Pres[t]) \n")
-
-# end
-
-# close(f)
