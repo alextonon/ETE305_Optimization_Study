@@ -69,10 +69,10 @@ Nhours_per_week = 7*24
 Nhours = Nweeks * Nhours_per_week
 
 # Capacités initiales par technologie
-solar_capacities = fill(CapaSolar_init, Nweeks)
-offshore_capacities = fill(CapaOffshore_init, Nweeks)
-onshore_capacities = fill(CapaOnshore_init, Nweeks)
-battery_capacities = fill(CapaBattery_init, Nweeks)
+solar_capacities = fill(CapaSolar_init, Nweeks+1)
+offshore_capacities = fill(CapaOffshore_init, Nweeks+1)
+onshore_capacities = fill(CapaOnshore_init, Nweeks+1)
+battery_capacities = fill(CapaBattery_init, Nweeks+1)
 
 # Tableaux horaires annuels pour stocker les résultats de dispatch
 solar_annual      = zeros(Nhours)
@@ -97,10 +97,6 @@ Phy_annual  = zeros(Nhours)
 Puns_annual = zeros(Nhours)
 Pexc_annual = zeros(Nhours)
 
-# Tableaux par semaine pour suivi simple (optionnel)
-battery_stock_weekly = zeros(Nweeks)
-STEP_stock_weekly    = zeros(Nweeks)
-
 # Conditions initiales pour la première semaine
 global stock_battery_initial = 0
 global stock_STEP_initial    = 0
@@ -111,8 +107,9 @@ global TAC_H2_running_initial = zeros(Int, NH2_TAC_max)
 global CCG_H2_installed_initial = zeros(Int, NH2_CCG_max)
 global TAC_H2_installed_initial = zeros(Int, NH2_TAC_max)
 
+LAST_WEEK = 50
 
-for week in 1:50
+for week in 1:LAST_WEEK
     t_start = now()
     println("Début de l'EOD semaine $week à $t_start ...")
 
@@ -196,7 +193,6 @@ for week in 1:50
     end
 
     ####### Defining objective function #######
-
     @objective(model, Min, 
                         (CapaSolar*(capex_solar + opex_solar) + CapaOffshore*(capex_offshore + opex_offshore) + CapaOnshore*(capex_onshore + opex_onshore) 
                         + CapaBattery*(capex_2h_battery + opex_2h_battery) 
@@ -313,10 +309,11 @@ for week in 1:50
     @views load_annual[idx] .= value.(load[1:Nhours_per_week])
     
     # --- Mise à jour des capacités pour la semaine suivante (évolution du parc) ---
-    solar_capacities[week]    = round(Int, value(CapaSolar))
-    onshore_capacities[week]  = round(Int, value(CapaOnshore))
-    offshore_capacities[week] = round(Int, value(CapaOffshore))
-    battery_capacities[week]  = round(Int, value(CapaBattery))
+    solar_capacities[week:week+1]    = round(Int, value(CapaSolar))
+    onshore_capacities[week:week+1]  = round(Int, value(CapaOnshore))
+    offshore_capacities[week:week+1] = round(Int, value(CapaOffshore))
+    battery_capacities[week:week+1]  = round(Int, value(CapaBattery))
+
     
     # --- Stock initial pour la semaine suivante ---
     global stock_battery_initial = value(stock_battery[Tmax])
@@ -338,7 +335,7 @@ end
 
 # --- Export CSV annuel (comme dans ton code) ---
 open("results_annuel.csv", "w") do f
-    write(f, "t;Solar;Onshore;Offshore;Battery_stock;Battery_charge;Battery_discharge;STEP_stock;STEP_charge;STEP_discharge;H2_CCG;H2_TAC;Hydro;Load\n")
+    write(f, "t;Solar;Onshore;Offshore;Battery_stock;Battery_charge;Battery_discharge;STEP_stock;STEP_charge;STEP_discharge;H2_CCG;H2_TAC;Hydro;Load;Defailance;Exces\n")
     for t in 1:Nhours
         write(f,
             string(
@@ -355,7 +352,9 @@ open("results_annuel.csv", "w") do f
                 round(sum(PH2_CCG_annual[t, :]), digits=2), ";",
                 round(sum(PH2_TAC_annual[t, :]), digits=2), ";",
                 round(Phy_annual[t], digits=2), ";",
-                round(load_annual[t], digits=2),
+                round(load_annual[t], digits=2), ";",
+                round(Puns_annual[t], digits=2), ";",
+                round(Pexc_annual[t], digits=2),
                 "\n"
             )
         )
@@ -365,43 +364,47 @@ end
 using JSON3
 
 # Construction du dictionnaire annuel
-parc_annuel = Dict(
-    "capacites_hebdomadaires_MW" => Dict(
-        "solar"    => solar_capacities,
-        "onshore"  => onshore_capacities,
-        "offshore" => offshore_capacities,
-        "battery"  => battery_capacities
+parc = Dict(
+    "status" => string(termination_status(model)),
+    "cout_total_euros" => round(objective_value(model), digits=2),
+
+    "capacites_MW" => Dict(
+        "onshore" => round(value(onshore_capacities[LAST_WEEK]), digits=2),
+        "offshore" => round(value(offshore_capacities[LAST_WEEK]), digits=2),
+        "solar" => round(value(solar_capacities[LAST_WEEK]), digits=2),
+        "battery" => round(value(battery_capacities[LAST_WEEK]), digits=2)
     ),
 
-    "production_horaire_MWh" => Dict(
-        "solar"    => solar_annual,
-        "onshore"  => onshore_annual,
-        "offshore" => offshore_annual,
-        "battery_charge"     => battery_charge_annual,
-        "battery_discharge"  => battery_discharge_annual,
-        "battery_stock"      => battery_stock_annual,
-        "STEP_charge"        => STEP_charge_annual,
-        "STEP_discharge"     => STEP_discharge_annual,
-        "STEP_stock"         => STEP_stock_annual,
-        "H2_CCG" => PH2_CCG_annual,
-        "H2_TAC" => PH2_TAC_annual,
-        "Hydro"  => Phy_annual
+    "H2" => Dict(
+        "CCG" => Dict(
+            "nombre_installees" => sum(value.(CCG_H2_installed) .> 0.5),
+            "unites_installees" => [
+                g for g in 1:NH2_CCG_max if value(CCG_H2_installed[g]) > 0.5
+            ],
+            "production_totale_MWh" => round(sum(value.(PH2_CCG)), digits=2)
+        ),
+
+        "TAC" => Dict(
+            "nombre_installees" => sum(value.(TAC_H2_installed) .> 0.5),
+            "unites_installees" => [
+                g for g in 1:NH2_TAC_max if value(TAC_H2_installed[g]) > 0.5
+            ],
+            "production_totale_MWh" => round(sum(value.(PH2_TAC)), digits=2)
+        )
     ),
 
-    "H2_running" => Dict(
-        "CCG" => CCG_H2_running_annual,
-        "TAC" => TAC_H2_running_annual
-    ),
-
-    "defaillance_exces" => Dict(
-        "defaillance_MWh" => Puns_annual,
-        "exces_MWh"      => Pexc_annual
+    "energie_totale_MWh" => Dict(
+        "defaillance" => round(sum(value.(Puns)), digits=2),
+        "exces" => round(sum(value.(Pexc)), digits=2),
+        "production_H2_totale" => round(sum(value.(PH2_CCG)) + sum(value.(PH2_TAC)), digits=2),
+        "production_hydro" => round(sum(value.(Phy)), digits=2)
     )
 )
 
+
 # Écriture dans fichier JSON
 open("parc_annuel.json", "w") do f
-    JSON3.write(f, parc_annuel; indent=4)
+    JSON3.write(f, parc; indent=4)
 end
 
 println("Fichier parc_annuel.json généré avec succès ✅")
