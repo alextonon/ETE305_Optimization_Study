@@ -49,7 +49,8 @@ function extraire_donnees_semaine(data_file::String, num_semaine::Int; AnneauGar
         "onshore_load_factor" => fc_onshore,
         "offshore_load_factor" => fc_offshore,
         "solar_load_factor" => fc_solaire,
-        "thermique_fatal" => th_fatal
+        "thermique_fatal" => th_fatal,
+        "Tmax" => Tmax
     )
 end
 
@@ -80,6 +81,16 @@ function extraire_donnees_config(data_file::String)
         )
     end
 
+    gisement_solaire = XLSX.readdata(data_file, "Gisements", "B3") # MW
+    gisement_onshore = XLSX.readdata(data_file, "Gisements", "B4") # MW
+    gisement_offshore = XLSX.readdata(data_file, "Gisements", "B5") # MW
+
+    centrales["gisement"] = Dict(
+        "Solar" => gisement_solaire,
+        "Onshore" => gisement_onshore,
+        "Offshore" => gisement_offshore
+    )
+
     # CAPEX / OPEX / Durée de vie
     CAPEX = XLSX.readdata(data_file, "Investissements", "B2:B11")
     OPEX = XLSX.readdata(data_file, "Investissements", "C2:C11")
@@ -93,7 +104,8 @@ function extraire_donnees_config(data_file::String)
             "PU_cost" => XLSX.readdata(data_file, "Parc électrique", "H9"),  #€/MWh basé sur le tarif de prod de la centrale CCG gaz A MODIFIER
             "Pmin" => XLSX.readdata(data_file, "Parc électrique", "F9"), #MW
             "Pmax" => XLSX.readdata(data_file, "Parc électrique", "E9"), #MW
-            "dmin" => XLSX.readdata(data_file, "Parc électrique", "G9") #h
+            "dmin" => XLSX.readdata(data_file, "Parc électrique", "G9"), #h
+            "gisement" => XLSX.readdata(data_file, "Gisements", "B12") # Nombre
         ),
         "TAC" => Dict(
             "capex" => CAPEX[8]*1000,
@@ -101,7 +113,8 @@ function extraire_donnees_config(data_file::String)
             "PU_cost" => XLSX.readdata(data_file, "Parc électrique", "H10"),
             "Pmin" => XLSX.readdata(data_file, "Parc électrique", "F10"),
             "Pmax" => XLSX.readdata(data_file, "Parc électrique", "E10"),
-            "dmin" => XLSX.readdata(data_file, "Parc électrique", "G10")
+            "dmin" => XLSX.readdata(data_file, "Parc électrique", "G10"),
+            "gisement" => XLSX.readdata(data_file, "Gisements", "B13") # Nombre
         )
     )
 
@@ -134,7 +147,8 @@ function extraire_donnees_config(data_file::String)
         "duree_vie" => centrales["batterie"]["duree_vie"],
         "rendement" => rbattery,
         "d_battery" => d_battery,
-        "CapaBattery_init" => CapaBattery_init
+        "CapaBattery_init" => CapaBattery_init,
+        "gisement" => XLSX.readdata(data_file, "Gisements", "B8") #MW
     )
 
     defaillance = Dict(
