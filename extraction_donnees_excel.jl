@@ -1,46 +1,53 @@
-#packages
-using JuMP
-#use the solver you want
-using HiGHS
-#package to read excel files
 using XLSX
 
+col_conso = "C"  # colonne de consommation électrique totale dans le fichier excel
+col_fc_onshore = "E" # colonne de la capacité de production onshore
+col_fc_offshore = "F" # colonne de la capacité de production offshore
+col_fc_solaire = "H" # colonne de la capacité de production solaire
+col_fil_eau = "I" # colonne de la capacité de production hydroélectrique (fil de l'eau)
+col_hydro_lac = "J" # colonne de la capacité de production hydroélectrique (lacs)
+col_th_fatal = "L"
 
-############## EXTRACTION DES CONSO A LA SEMAINE + ANNEAU DE GARDE (1 JOUR)
+function extraire_donnees_semaine(data_file::String, num_semaine::Int; AnneauGarde::Int=24)
+    # Calcul des lignes à extraire
+    Tmax = 7*24 + AnneauGarde
+    row_start = 3 + (num_semaine-1)*7*24
+    row_end = row_start + Tmax - 1
 
-num_semaine=1 #numéro de la semaine à extraire (semaine 1 = du 04/07/2020 au 10/07/2020, semaine 2 = du 11/07/2020 au 17/07/2020, etc.) 
+    # --- Consommation ---
+    range_conso = string(col_conso, row_start, ":", col_conso, row_end)
+    conso = XLSX.readdata(data_file, "Consommation_elec_totale", range_conso)
 
-Tmax = 192 # extraction for 1 week + 1 day (8*24=192 hours)
-col = "C"  # colonne de consommation électrique totale dans le fichier excel
-row_start = 3+(num_semaine-1)*7*24 # ligne de début de la semaine à extraire
-row_end = row_start+Tmax-1 # ligne de fin de la semaine à extraire
+    # --- Hydro lac ---
+    range_hydro_lac = string(col_hydro_lac, row_start, ":", col_hydro_lac, row_end)
+    capa_hydro_lac = XLSX.readdata(data_file, "Consommation_elec_totale", range_hydro_lac)
+    hydro_lac_dispo = sum(capa_hydro_lac[1:Tmax-24])
 
-range = string(col, row_start, ":", col, row_end)
-#data for load and fatal generation
-data_file = "data/Donnees_etude_de_cas_ETE305.xlsx"
+    # --- Hydro fil de l'eau ---
+    range_fil_eau = string(col_fil_eau, row_start, ":", col_fil_eau, row_end)
+    hydro_fil_eau = XLSX.readdata(data_file, "Consommation_elec_totale", range_fil_eau)
 
-#data for load and fatal generation
-conso = XLSX.readdata(data_file, "Consommation_elec_totale", range)
-conso = XLSX.readdata(data_file, "résumé", "H2:H194")
-################### EXTRACTION DES STOCKS HYDRO ##########
+    # --- Facteurs de charge ---
+    range_fc_onshore = string(col_fc_onshore, row_start, ":", col_fc_onshore, row_end)
+    fc_onshore = XLSX.readdata(data_file, "Consommation_elec_totale", range_fc_onshore)
 
-# On résonne sur le destockage à la semaine et non sur la différence de stock (qui n'est pas accessible au pas de temps horaire) 
-range_hydro_lac = string("N", row_start, ":", "N", row_end)
-capa_hydro_lac = XLSX.readdata(data_file, "Détails historique hydro",range_hydro_lac) # capacité de stockage du lac en MWh
-utilisable_hydro_lac = sum(capa_hydro_lac[1:Tmax-24]) # quantité totale d'énergie hydroélectrique disponible sur la semaine (en MWh)
+    range_fc_offshore = string(col_fc_offshore, row_start, ":", col_fc_offshore, row_end)
+    fc_offshore = XLSX.readdata(data_file, "Consommation_elec_totale", range_fc_offshore)
 
-############# va chercher direct dans le excel la somme de l'hydro dispo à la semaine (jour 1 vers jour 7 (jour 8 exclu)) 
-utilisable_hydro_lac = XLSX.readdata(data_file, "résumé","D2")
+    range_fc_solaire = string(col_fc_solaire, row_start, ":", col_fc_solaire, row_end)
+    fc_solaire = XLSX.readdata(data_file, "Consommation_elec_totale", range_fc_solaire)
 
-range_hydro_STEP = string("O", row_start, ":", "O", row_end)
-capa_hydro_STEP = XLSX.readdata(data_file, "Détails historique hydro",range_hydro_STEP) # capacité de stockage du lac STEP en MWh
-utilisable_hydro_STEP = sum(capa_hydro_STEP[1:Tmax-24]) # quantité totale d'énergie hydroélectrique disponible sur la semaine (en MWh)
-######### en allant chercher direct dans le excel 
-utilisable_hydro_STEP = XLSX.readdata(data_file, "résumé","D4") # va chercher direct dans le excel la somme de l'hydro STEP dispo à la semaine (jour 1 vers jour 7 (jour 8 exclu))
+    # --- Thermique ---
+    range_th_fatal = string(col_th_fatal, row_start, ":", col_th_fatal, row_end)
+    th_fatal = XLSX.readdata(data_file, "Consommation_elec_totale", range_th_fatal)
 
-################### EXTRACTION DES CAPEX ET OPEX DES INSTALLATIONS ##########
-
-types_centrales=["onshore", "offshore_pose", "offshore_flot", "pv_pose", "pv_gd_toit", "pv_pet_toit", "CCG_H2", "TAC_H2", "electrolyseur", "batterie"]
-CAPEX=XLSX.readdata(data_file, "Investissements", "B2:B11") # CAPEX des différentes technologies en €/kW
-OPEX=XLSX.readdata(data_file, "Investissements", "C2:C11") # OPEX des différentes technologies en €/kW/an
-Duree_vie=XLSX.readdata(data_file, "Investissements", "D2:D11") # Durée de vie des différentes technologies en années
+    return Dict(
+        "load" => conso,
+        "Usable_per_week_hydro_lacs" => hydro_lac_dispo,
+        "hydro_fatal" => hydro_fil_eau,
+        "onshore_load_factor" => fc_onshore,
+        "offshore_load_factor" => fc_offshore,
+        "solar_load_factor" => fc_solaire,
+        "thermique_fatal" => th_fatal
+    )
+end

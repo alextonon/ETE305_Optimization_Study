@@ -10,7 +10,6 @@ Tguard = 24
 
 Tmax = Tweek + Tguard
 
-
 #data for load and fatal generation
 data_file = "data/Donnees_etude_de_cas_ETE305.xlsx"
 #data for load and fatal generation
@@ -25,8 +24,6 @@ thermique_fatal = XLSX.readdata(data_file, "Résumé", "M2:M193")
 # data per week for hydro use (reference)
 Usable_per_week_hydro_lacs= XLSX.readdata(data_file, "Résumé", "D2") #quantité d'hydro disponible à la semaine (en MWh) pour les lacs
 Usable_per_week_hydro_STEP= XLSX.readdata(data_file, "Résumé", "D4") #quantité d'hydro disponible à la semaine (en MWh) pour les STEP
-
-
 
 #initial capacities 
 CapaSolar_init = XLSX.readdata(data_file, "Parc électrique", "C24") #MW
