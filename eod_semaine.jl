@@ -219,8 +219,7 @@ model = Model(HiGHS.Optimizer)
 @variable(model, TAC_H2_running[1:Tmax, 1:NH2_TAC_max], Bin)         # 1 si ON à t
 @variable(model, PH2_TAC[1:Tmax, 1:NH2_TAC_max] >= 0)
 
-@variable(model, TAC_H2_start[1:Tmax,1:NH2_TAC_max], Bin)
-@variable(model, TAC_H2_stop[1:Tmax,1:NH2_TAC_max], Bin)
+
 
 #hydro generation variables
 @variable(model, Phy[1:Tmax,1:Nhy] >= 0)
@@ -294,23 +293,6 @@ for g in 1:NH2_CCG_max
         end
 end
 
-for g in 1:NH2_TAC_max
-        if (dmin_TAC_h2[g] > 1)
-            @constraint(model, [t in 2:Tmax], TAC_H2_running[t,g]-TAC_H2_running[t-1,g]==TAC_H2_start[t,g]-TAC_H2_stop[t,g],  base_name = "stateH2_TAC_$g") # detect start and stop
-            @constraint(model, [t in 1:Tmax], TAC_H2_start[t,g]+TAC_H2_stop[t,g]<=1,  base_name = "exclusiveH2_TAC_$g") # avoid starting and stoping at same step
-
-            # Initial conditions
-            @constraint(model, TAC_H2_start[1,g]==0,  base_name = "iniStartH2_TAC_$g")
-            @constraint(model, TAC_H2_stop[1,g]==0,  base_name = "iniStopH2_TAC_$g")
-            @constraint(model, [t in 1:dmin_TAC_h2[g]-1], TAC_H2_running[t,g] >= sum(TAC_H2_start[i,g] for i in 1:t), base_name = "dminStartH2_TAC_$(g)_init")
-            @constraint(model, [t in 1:dmin_TAC_h2[g]-1], TAC_H2_running[t,g] <= 1-sum(TAC_H2_stop[i,g] for i in 1:t), base_name = "dminStopH2_TAC_$(g)_init")
-
-            # Minimum up and down time constraints
-            @constraint(model, [t in dmin_TAC_h2[g]:Tmax], TAC_H2_running[t,g] >= sum(TAC_H2_start[i,g] for i in (t-dmin_TAC_h2[g]+1):t),  base_name = "dminStartH2_TAC_$g")
-            @constraint(model, [t in dmin_TAC_h2[g]:Tmax], TAC_H2_running[t,g] <= 1 - sum(TAC_H2_stop[i,g] for i in (t-dmin_TAC_h2[g]+1):t),  base_name = "dminStopH2_TAC_$g")
-        end
-    
-end
 
 # H2 volume constraints
 RendementElectrolyse = 0.7 # Rendement de l'électrolyse
@@ -319,6 +301,7 @@ RendementCombustion = 0.5 # Rendement de la combustion de l'hydrogène
 
 # hydro unit constraints
 @constraint(model, [t in 1:Tmax, h in 1:Nhy], Pmin_hy_lacs[h] <= Phy[t,h] <= Pmax_hy_lacs[h])
+
 # hydro stock constraint
 @constraint(model, [h in 1:Nhy], sum(Phy[t,h] for t in 1:Tmax) <= e_hy_lacs[h])
 
@@ -446,9 +429,11 @@ hy_gen = value.(Phy)
 
 STEP_charge = value.(Pcharge_STEP)
 STEP_decharge = value.(Pdecharge_STEP)
+STEP_stock = value.(stock_STEP)
 
 battery_charge = value.(Pcharge_battery)
 battery_decharge = value.(Pdecharge_battery)
+battery_stock = value.(stock_battery)
 
 solar_gen = value(CapaSolar) .* solar_load_factor
 onshore_gen = value(CapaOnshore) .* onshore_load_factor
@@ -458,8 +443,8 @@ open("results.csv", "w") do f
 
     # Header
     write(f, "t;H2_CCG;H2_TAC;Hydro;Solaire;Onshore;Offshore;")
-    write(f, "STEP_charge;STEP_decharge;")
-    write(f, "Battery_charge;Battery_decharge;")
+    write(f, "STEP_charge;STEP_decharge;STEP_stock;")
+    write(f, "Battery_charge;Battery_decharge;Battery_stock;")
     write(f, "Load;Net_load\n")
 
     for t in 1:Tmax
@@ -479,8 +464,10 @@ open("results.csv", "w") do f
                 round(offshore_gen[t], digits=2), ";",
                 round(-STEP_charge[t], digits=2), ";",
                 round(STEP_decharge[t], digits=2), ";",
+                round(STEP_stock[t], digits=2), ";",
                 round(-battery_charge[t], digits=2), ";",
                 round(battery_decharge[t], digits=2), ";",
+                round(battery_stock[t], digits=2), ";",
                 round(load[t], digits=2), ";",
                 round(load[t] - solar_gen[t] - onshore_gen[t] - offshore_gen[t], digits=2),
                 "\n"
