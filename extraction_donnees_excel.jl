@@ -8,6 +8,7 @@ col_fil_eau = "I" # colonne de la capacité de production hydroélectrique (fil 
 col_hydro_lac = "J" # colonne de la capacité de production hydroélectrique (lacs)
 col_th_fatal = "L"
 
+
 function extraire_donnees_semaine(data_file::String, num_semaine::Int; AnneauGarde::Int=24)
     # Calcul des lignes à extraire
     Tmax = 7*24 + AnneauGarde
@@ -49,5 +50,104 @@ function extraire_donnees_semaine(data_file::String, num_semaine::Int; AnneauGar
         "offshore_load_factor" => fc_offshore,
         "solar_load_factor" => fc_solaire,
         "thermique_fatal" => th_fatal
+    )
+end
+
+function extraire_donnees_config(data_file::String)
+    types_centrales = ["onshore", "offshore_pose", "offshore_flot", "pv_pose", 
+                       "pv_gd_toit", "pv_pet_toit", "CCG_H2", "TAC_H2", 
+                       "electrolyseur", "batterie"]
+
+    # --- Capacités initiales ---
+    capacites_init = Dict(
+        "Solar" => XLSX.readdata(data_file, "Parc électrique", "C24"),
+        "Offshore" => XLSX.readdata(data_file, "Parc électrique", "C23"),
+        "Onshore" => XLSX.readdata(data_file, "Parc électrique", "C22")
+    )
+
+    # --- CAPEX / OPEX / Durée de vie ---
+    CAPEX = XLSX.readdata(data_file, "Investissements", "B2:B11")
+    OPEX = XLSX.readdata(data_file, "Investissements", "C2:C11")
+    Duree_vie = XLSX.readdata(data_file, "Investissements", "D2:D11")
+
+    # Créer un dictionnaire centralisé pour toutes les centrales
+    centrales = Dict()
+    for (i, type_c) in enumerate(types_centrales)
+        centrales[type_c] = Dict(
+            "capex" => CAPEX[i]*1000,   # €/MW
+            "opex" => OPEX[i]*1000,     # €/MW/an
+            "duree_vie" => Duree_vie[i] # années
+        )
+    end
+
+    # CAPEX / OPEX / Durée de vie
+    CAPEX = XLSX.readdata(data_file, "Investissements", "B2:B11")
+    OPEX = XLSX.readdata(data_file, "Investissements", "C2:C11")
+    Duree_vie = XLSX.readdata(data_file, "Investissements", "D2:D11")
+
+    # H2 clusters
+    H2 = Dict(
+        "CCG" => Dict(
+            "capex" => CAPEX[7]*1000, #€/MW
+            "opex" => OPEX[7]*1000, #€/MW/ year
+            "PU_cost" => XLSX.readdata(data_file, "Parc électrique", "H9"),  #€/MWh basé sur le tarif de prod de la centrale CCG gaz A MODIFIER
+            "Pmin" => XLSX.readdata(data_file, "Parc électrique", "F9"), #MW
+            "Pmax" => XLSX.readdata(data_file, "Parc électrique", "E9"), #MW
+            "dmin" => XLSX.readdata(data_file, "Parc électrique", "G9") #h
+        ),
+        "TAC" => Dict(
+            "capex" => CAPEX[8]*1000,
+            "opex" => OPEX[8]*1000,
+            "PU_cost" => XLSX.readdata(data_file, "Parc électrique", "H10"),
+            "Pmin" => XLSX.readdata(data_file, "Parc électrique", "F10"),
+            "Pmax" => XLSX.readdata(data_file, "Parc électrique", "E10"),
+            "dmin" => XLSX.readdata(data_file, "Parc électrique", "G10")
+        )
+    )
+
+    # Défaillance
+    cuns = XLSX.readdata(data_file, "Defaillance", "B2")  #cost of unsupplied energy €/MWh
+    cexc = XLSX.readdata(data_file, "Defaillance", "B3") #cost of in excess energy €/MWh
+
+    Pmax_STEP = XLSX.readdata(data_file, "Parc électrique", "C21") #MW
+    rSTEP = XLSX.readdata(data_file, "Rendements", "B10") #rendement au pompage 
+    Pmax_hy_lacs = XLSX.readdata(data_file, "Parc électrique", "C20") #MW
+
+    hydro = Dict(
+        "lacs" => Dict(
+            "Pmax" => Pmax_hy_lacs,
+        ),
+        "STEP" => Dict(
+            "Pmax" => Pmax_STEP,
+            "rendement_pompage" => rSTEP
+        )
+    )
+
+    #battery
+    rbattery = XLSX.readdata(data_file, "Rendements", "B9") # rendement de la batterie au sockage ou au destockage
+    d_battery = XLSX.readdata(data_file, "Investissements", "E11") #hours
+    CapaBattery_init = 0 #MW
+
+    battery = Dict(
+        "capex" => centrales["batterie"]["capex"],
+        "opex" => centrales["batterie"]["opex"],
+        "duree_vie" => centrales["batterie"]["duree_vie"],
+        "rendement" => rbattery,
+        "d_battery" => d_battery,
+        "CapaBattery_init" => CapaBattery_init
+    )
+
+    defaillance = Dict(
+        "cost_unsupplied" => cuns,
+        "cost_excess" => cexc
+    )
+
+    return Dict(
+        "capacites_init" => capacites_init,
+        "enr" => centrales,
+        "H2" => H2,
+        "hydro" => hydro,
+        "battery" => battery,
+        "defaillance" => defaillance
     )
 end
