@@ -309,10 +309,10 @@ for week in 1:LAST_WEEK
     @views load_annual[idx] .= value.(load[1:Nhours_per_week])
     
     # --- Mise à jour des capacités pour la semaine suivante (évolution du parc) ---
-    solar_capacities[week:week+1]    = round(Int, value(CapaSolar))
-    onshore_capacities[week:week+1]  = round(Int, value(CapaOnshore))
-    offshore_capacities[week:week+1] = round(Int, value(CapaOffshore))
-    battery_capacities[week:week+1]  = round(Int, value(CapaBattery))
+    solar_capacities[week:week+1]    .= round(Int, value(CapaSolar))
+    onshore_capacities[week:week+1]  .= round(Int, value(CapaOnshore))
+    offshore_capacities[week:week+1] .= round(Int, value(CapaOffshore))
+    battery_capacities[week:week+1]  .= round(Int, value(CapaBattery))
 
     
     # --- Stock initial pour la semaine suivante ---
@@ -365,9 +365,6 @@ using JSON3
 
 # Construction du dictionnaire annuel
 parc = Dict(
-    "status" => string(termination_status(model)),
-    "cout_total_euros" => round(objective_value(model), digits=2),
-
     "capacites_MW" => Dict(
         "onshore" => round(value(onshore_capacities[LAST_WEEK]), digits=2),
         "offshore" => round(value(offshore_capacities[LAST_WEEK]), digits=2),
@@ -377,27 +374,21 @@ parc = Dict(
 
     "H2" => Dict(
         "CCG" => Dict(
-            "nombre_installees" => sum(value.(CCG_H2_installed) .> 0.5),
-            "unites_installees" => [
-                g for g in 1:NH2_CCG_max if value(CCG_H2_installed[g]) > 0.5
-            ],
-            "production_totale_MWh" => round(sum(value.(PH2_CCG)), digits=2)
+            "nombre_installees" => sum(value.(CCG_H2_installed_initial) .> 0.5),
+            "production_totale_MWh" => round(sum(value.(PH2_CCG_annual)), digits=2)
         ),
 
         "TAC" => Dict(
-            "nombre_installees" => sum(value.(TAC_H2_installed) .> 0.5),
-            "unites_installees" => [
-                g for g in 1:NH2_TAC_max if value(TAC_H2_installed[g]) > 0.5
-            ],
-            "production_totale_MWh" => round(sum(value.(PH2_TAC)), digits=2)
+            "nombre_installees" => sum(value.(TAC_H2_installed_initial) .> 0.5),
+            "production_totale_MWh" => round(sum(value.(PH2_TAC_annual)), digits=2)
         )
     ),
 
     "energie_totale_MWh" => Dict(
-        "defaillance" => round(sum(value.(Puns)), digits=2),
-        "exces" => round(sum(value.(Pexc)), digits=2),
-        "production_H2_totale" => round(sum(value.(PH2_CCG)) + sum(value.(PH2_TAC)), digits=2),
-        "production_hydro" => round(sum(value.(Phy)), digits=2)
+        "defaillance" => round(sum(value.(Puns_annual)), digits=2),
+        "exces" => round(sum(value.(Pexc_annual)), digits=2),
+        "production_H2_totale" => round(sum(value.(PH2_CCG_annual)) + sum(value.(PH2_TAC_annual)), digits=2),
+        "production_hydro" => round(sum(value.(Phy_annual)), digits=2)
     )
 )
 
