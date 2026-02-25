@@ -1,0 +1,1 @@
+{"energie_totale_MWh":{"exces":300171.43,"defaillance":0.0,"production_H2":105060.0,"production_hydro":88307.0},"cout_total_euros":4.873265199798e10,"status":"OPTIMAL","capacites_MW":{"offshore":0.0,"onshore":19914.33,"solar":23343.94,"battery":16193.86},"H2":{"unites_installees":[],"nombre_installees":0}}

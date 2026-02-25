@@ -77,7 +77,7 @@ e_hy_lacs = Usable_per_week_hydro_lacs*ones(Nhy) #MWh
 
 
 # variable costs
-cuns = XLSX.readdata(data_file, "Defaillance", "B2") #cost of unsupplied energy €/MWh
+cuns = XLSX.readdata(data_file, "Defaillance", "B2") * 1000 #cost of unsupplied energy €/MWh
 cexc = XLSX.readdata(data_file, "Defaillance", "B3") #cost of in excess energy €/MWh
 
  #investment costs 
@@ -308,25 +308,113 @@ battery_charge = value.(Pcharge_battery)
 battery_decharge = value.(Pdecharge_battery)
 
 
-# new file created
-touch("results.csv")
+println("\n==================== RÉSULTATS ====================")
+println("Status : ", termination_status(model))
+println("Coût total : ", round(objective_value(model), digits=2), " €")
 
-# file handling in write mode
-f = open("results.csv", "w")
+println("\n--- Capacités optimales ---")
+println("Onshore  : ", round(value(CapaOnshore), digits=2), " MW")
+println("Offshore : ", round(value(CapaOffshore), digits=2), " MW")
+println("Solar    : ", round(value(CapaSolar), digits=2), " MW")
+println("Battery  : ", round(value(CapaBattery), digits=2), " MW")
 
-# for name in names
-#     write(f, "$name ;")
-# end
-write(f, "Hydro;STEP pompage;STEP turbinage;Batterie injection;Batterie soutirage;RES;load;Net load\n")
-
-for t in 1:Tmax
-    write(f, "$(sum(hy_gen[t, h] for h in 1:Nhy));")
-    write(f, "$(STEP_charge[t]);$(STEP_decharge[t]);")
-    write(f, "$(battery_charge[t]);$(battery_decharge[t]);")
-    write(f, "$(Pres[t]);$(load[t]);$(load[t]-Pres[t]) \n")
-
+println("\n--- H2 installées ---")
+for g in 1:NH2_max
+    if value(H2installed[g]) > 0.5
+        println("Unité H2 ", g, " installée")
+    end
 end
 
-close(f)
+println("\n--- Génération horaire ---")
+println("Défaillance : ", round(sum(value.(Puns)), digits=2), " MWh")
+println("Excès d'énergie : ", round(sum(value.(Pexc)), digits=2), " MWh")
+
+println("===================================================\n")
+
+using JSON3
+
+# Construction du dictionnaire du parc
+parc = Dict(
+    "status" => string(termination_status(model)),
+    "cout_total_euros" => round(objective_value(model), digits=2),
+
+    "capacites_MW" => Dict(
+        "onshore" => round(value(CapaOnshore), digits=2),
+        "offshore" => round(value(CapaOffshore), digits=2),
+        "solar" => round(value(CapaSolar), digits=2),
+        "battery" => round(value(CapaBattery), digits=2)
+    ),
+
+    "H2" => Dict(
+        "nombre_installees" => sum(value.(H2installed) .> 0.5),
+        "unites_installees" => [
+            g for g in 1:NH2_max if value(H2installed[g]) > 0.5
+        ]
+    ),
+
+    "energie_totale_MWh" => Dict(
+        "defaillance" => round(sum(value.(Puns)), digits=2),
+        "exces" => round(sum(value.(Pexc)), digits=2),
+        "production_H2" => round(sum(value.(PH2)), digits=2),
+        "production_hydro" => round(sum(value.(Phy)), digits=2)
+    )
+)
+
+# Écriture dans fichier
+open("parc_resultats.json", "w") do f
+    JSON3.write(f, parc; indent=4)
+end
+
+println("Fichier parc_resultats.json généré avec succès ✅")
+
+using DelimitedFiles
+
+th_gen = value.(PH2)
+hy_gen = value.(Phy)
+
+STEP_charge = value.(Pcharge_STEP)
+STEP_decharge = value.(Pdecharge_STEP)
+
+battery_charge = value.(Pcharge_battery)
+battery_decharge = value.(Pdecharge_battery)
+
+solar_gen = value(CapaSolar) .* solar_load_factor
+onshore_gen = value(CapaOnshore) .* onshore_load_factor
+offshore_gen = value(CapaOffshore) .* offshore_load_factor
+
+open("results.csv", "w") do f
+
+    # Header
+    write(f, "t;H2_total;Hydro;Solaire;Onshore;Offshore;")
+    write(f, "STEP_charge;STEP_decharge;")
+    write(f, "Battery_charge;Battery_decharge;")
+    write(f, "Load;Net_load\n")
+
+    for t in 1:Tmax
+
+        # Somme des H2
+        H2_total = sum(th_gen[t,g] for g in 1:NH2_max)
+
+        write(f,
+            string(
+                t, ";",
+                round(H2_total, digits=2), ";",
+                round(hy_gen[t,1], digits=2), ";",
+                round(solar_gen[t], digits=2), ";",
+                round(onshore_gen[t], digits=2), ";",
+                round(offshore_gen[t], digits=2), ";",
+                round(-STEP_charge[t], digits=2), ";",
+                round(STEP_decharge[t], digits=2), ";",
+                round(-battery_charge[t], digits=2), ";",
+                round(battery_decharge[t], digits=2), ";",
+                round(load[t], digits=2), ";",
+                round(load[t] - solar_gen[t] - onshore_gen[t] - offshore_gen[t], digits=2),
+                "\n"
+            )
+        )
+    end
+end
+
+println("Fichier results.csv généré avec succès ✅")
 
 end
