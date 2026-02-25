@@ -62,11 +62,11 @@ dmin_TAC = XLSX.readdata(data_file, "Parc électrique", "G10") #hours idem
 # Pmax_h2_CCG = Pmax_h2_CCG*ones(NH2_max_CCG)
 # dmin_CCG = dmin_CCG*ones(Int, NH2_max_CCG)
 
-NH2_max = 10
+NH2_max = 30
 
-Pmin_h2 = Pmin_h2_TAC*ones(NH2_max)
-Pmax_h2 = Pmax_h2_TAC*ones(NH2_max)
-dmin = dmin_TAC*ones(Int, NH2_max)
+Pmin_h2 = Pmin_h2_CCG*ones(NH2_max)
+Pmax_h2 = Pmax_h2_CCG*ones(NH2_max)
+dmin = dmin_CCG*ones(Int, NH2_max)
 
 
 #data for hydro reservoir "lacs"
@@ -197,7 +197,6 @@ model = Model(HiGHS.Optimizer)
 # @variable(model, capacity_solar_small_roof >= 0)
 
 #H2 generation variables
-NH2_max = 10 # nombre maximum d'unités de production d'hydrogène
 
 @variable(model, H2installed[1:NH2_max], Bin)                 # 1 si la centrale i est construite
 @variable(model, H2running[1:Tmax, 1:NH2_max], Bin)         # 1 si ON à t
@@ -241,6 +240,9 @@ NH2_max = 10 # nombre maximum d'unités de production d'hydrogène
 # H2 Power constraints
 @constraint(model, max_H2[t in 1:Tmax, i in 1:NH2_max], PH2[t,i] <= Pmax_h2[i]*H2running[t,i]) #Pmax constraints
 @constraint(model, min_H2[t in 1:Tmax, i in 1:NH2_max], Pmin_h2[i]*H2running[t,i] <= PH2[t,i]) #Pmin constraints
+
+# H2 instalation constraints
+@constraint(model, [t in 1:Tmax, g in 1:NH2_max], H2running[t,g] <= H2installed[g]) # only produce if installed
 
 # H2 duration constraints
 for g in 1:NH2_max
