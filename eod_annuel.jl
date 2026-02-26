@@ -34,9 +34,9 @@ opex_onshore = config["enr"]["onshore"]["opex"] #€/MW
 opex_offshore = config["enr"]["offshore_pose"]["opex"] #€/MW
 opex_solar = config["enr"]["pv_pose"]["opex"] #€/MW
 
-CapaSolar_max = config["enr"]["gisement"]["Solar"] #MW
-CapaOnshore_max = config["enr"]["gisement"]["Onshore"] #MW
-CapaOffshore_max = config["enr"]["gisement"]["Offshore"] #MW
+CapaSolar_max = config["enr"]["gisement"]["Solar"] +70000#MW
+CapaOnshore_max = config["enr"]["gisement"]["Onshore"] + 20000 #MW
+CapaOffshore_max = config["enr"]["gisement"]["Offshore"] + 20000#MW
 
 
 # Hydro
@@ -73,6 +73,8 @@ solar_capacities = fill(CapaSolar_init, Nweeks+1)
 offshore_capacities = fill(CapaOffshore_init, Nweeks+1)
 onshore_capacities = fill(CapaOnshore_init, Nweeks+1)
 battery_capacities = fill(CapaBattery_init, Nweeks+1)
+installed_CCG_H2 = fill(0, Nweeks+1)
+installed_TAC_H2 = fill(0, Nweeks+1)
 
 # Tableaux horaires annuels pour stocker les résultats de dispatch
 solar_annual      = zeros(Nhours)
@@ -107,7 +109,7 @@ global TAC_H2_running_initial = zeros(Int, NH2_TAC_max)
 global CCG_H2_installed_initial = zeros(Int, NH2_CCG_max)
 global TAC_H2_installed_initial = zeros(Int, NH2_TAC_max)
 
-LAST_WEEK = 50
+LAST_WEEK = 51
 
 for week in 1:LAST_WEEK
     t_start = now()
@@ -177,15 +179,9 @@ for week in 1:LAST_WEEK
     set_start_value.(CapaBattery, battery_capacities[week])
 
     for g in 1:NH2_CCG_max
-        set_start_value.(CCG_H2_installed[g], CCG_H2_installed_initial[g])
-    end
-
-    for g in 1:NH2_CCG_max
-        @constraint(model, CCG_H2_running[1,g] - CCG_H2_running_initial[g] == CCG_H2_start[1,g] - CCG_H2_stop[1,g])
-    end
-
-    for g in 1:NH2_TAC_max
-        set_start_value.(TAC_H2_installed[g], TAC_H2_installed_initial[g])
+        if CCG_H2_installed_initial[g] > 0.5
+            @constraint(model, CCG_H2_installed[g] == 1) # Déjà construite !
+        end
     end
 
     for g in 1:NH2_TAC_max
@@ -302,6 +298,9 @@ for week in 1:LAST_WEEK
     @views CCG_H2_running_annual[idx, :] .= value.(CCG_H2_running[1:Nhours_per_week, :])
     @views TAC_H2_running_annual[idx, :] .= value.(TAC_H2_running[1:Nhours_per_week, :])
 
+    @views installed_CCG_H2[week] = round(Int64, sum(value.(CCG_H2_installed)))
+    @views installed_TAC_H2[week] = round(Int64, sum(value.(TAC_H2_installed)))
+
     @views Phy_annual[idx]  .= value.(Phy[1:Nhours_per_week])
     @views Puns_annual[idx] .= value.(Puns[1:Nhours_per_week])
     @views Pexc_annual[idx] .= value.(Pexc[1:Nhours_per_week])
@@ -372,17 +371,17 @@ parc = Dict(
         "battery" => round(value(battery_capacities[LAST_WEEK]), digits=2)
     ),
 
-    "H2" => Dict(
-        "CCG" => Dict(
-            "nombre_installees" => sum(value.(CCG_H2_installed_initial) .> 0.5),
-            "production_totale_MWh" => round(sum(value.(PH2_CCG_annual)), digits=2)
-        ),
-
-        "TAC" => Dict(
-            "nombre_installees" => sum(value.(TAC_H2_installed_initial) .> 0.5),
-            "production_totale_MWh" => round(sum(value.(PH2_TAC_annual)), digits=2)
-        )
+"H2" => Dict(
+    "CCG" => Dict(
+        "nombre_installees" => sum(CCG_H2_installed_initial), 
+        "production_totale_MWh" => round(sum(PH2_CCG_annual), digits=2)
     ),
+
+    "TAC" => Dict(
+        "nombre_installees" => sum(TAC_H2_installed_initial),
+        "production_totale_MWh" => round(sum(PH2_TAC_annual), digits=2)
+    )
+),
 
     "energie_totale_MWh" => Dict(
         "defaillance" => round(sum(value.(Puns_annual)), digits=2),
@@ -399,3 +398,29 @@ open("parc_annuel.json", "w") do f
 end
 
 println("Fichier parc_annuel.json généré avec succès ✅")
+
+evolution_parc = Dict(
+    "semaine" => 1:LAST_WEEK,
+    "capacites_MW" => Dict(
+        "onshore" => onshore_capacities[1:LAST_WEEK],
+        "offshore" => offshore_capacities[1:LAST_WEEK],
+        "solar" => solar_capacities[1:LAST_WEEK],
+        "battery" => battery_capacities[1:LAST_WEEK]
+    ),
+    "H2" => Dict(
+        "CCG" => Dict(
+            "nombre_installees" => installed_CCG_H2[1:LAST_WEEK],
+            "production_totale_MWh" => [round(sum(value.(PH2_CCG_annual)), digits=2) for week in 1:LAST_WEEK]
+        ),
+
+        "TAC" => Dict(
+            "nombre_installees" => installed_TAC_H2[1:LAST_WEEK],
+            "production_totale_MWh" => [round(sum(value.(PH2_TAC_annual)), digits=2) for week in 1:LAST_WEEK]
+        )
+    )
+)
+
+# Écriture dans fichier JSON
+open("evolution_parc.json", "w") do f
+    JSON3.write(f, evolution_parc; indent=4)
+end
