@@ -185,6 +185,13 @@ for week in 1:LAST_WEEK
     end
 
     for g in 1:NH2_TAC_max
+        if TAC_H2_installed_initial[g] > 0.5
+            @constraint(model, TAC_H2_installed[g] == 1) # Déjà construite !
+        end
+    end
+
+
+    for g in 1:NH2_TAC_max
         @constraint(model, TAC_H2_running[1,g] - TAC_H2_running_initial[g] == TAC_H2_start[1,g] - TAC_H2_stop[1,g])
     end
 
@@ -333,7 +340,7 @@ for week in 1:LAST_WEEK
 end
 
 # --- Export CSV annuel (comme dans ton code) ---
-open("results_annuel.csv", "w") do f
+open("results/annual/results.csv", "w") do f
     write(f, "t;Solar;Onshore;Offshore;Battery_stock;Battery_charge;Battery_discharge;STEP_stock;STEP_charge;STEP_discharge;H2_CCG;H2_TAC;Hydro;Load;Defailance;Exces\n")
     for t in 1:Nhours
         write(f,
@@ -393,7 +400,7 @@ parc = Dict(
 
 
 # Écriture dans fichier JSON
-open("parc_annuel.json", "w") do f
+open("results/annual/parc_annuel.json", "w") do f
     JSON3.write(f, parc; indent=4)
 end
 
@@ -421,6 +428,6 @@ evolution_parc = Dict(
 )
 
 # Écriture dans fichier JSON
-open("evolution_parc.json", "w") do f
+open("results/annual/evolution_parc.json", "w") do f
     JSON3.write(f, evolution_parc; indent=4)
 end
