@@ -12,7 +12,7 @@ config = extraire_donnees_config(data_file)
 capex_CCG_H2 = config["H2"]["CCG"]["capex"] #€/MW
 opex_CCG_H2 = config["H2"]["CCG"]["opex"] #€/MW/year
 PU_cost_h2_CCG = config["H2"]["CCG"]["PU_cost"] #€/MWh basé sur le tarif de prod de la centrale CCG gaz A MODIFIER
-NH2_CCG_max = config["H2"]["CCG"]["gisement"] # Nombre de centrales CCG H2 disponibles
+NH2_CCG_max = config["H2"]["CCG"]["gisement"] +5  # Nombre de centrales CCG H2 disponibles
 Pmin_CCG_h2 = config["H2"]["CCG"]["Pmin"] #MW idem
 Pmax_CCG_h2 = config["H2"]["CCG"]["Pmax"] #MW idem
 dmin_CCG = config["H2"]["CCG"]["dmin"]#hours idem
@@ -23,7 +23,7 @@ PU_cost_h2_TAC = config["H2"]["TAC"]["PU_cost"] #€/MWh basé sur le tarif de p
 Pmin_TAC_h2 = config["H2"]["TAC"]["Pmin"] #MW idem
 Pmax_TAC_h2 = config["H2"]["TAC"]["Pmax"] #MW idem
 dmin_TAC = config["H2"]["TAC"]["dmin"] #hours idem
-NH2_TAC_max = config["H2"]["TAC"]["gisement"] # Nombre de centrales TAC H2 disponibles
+NH2_TAC_max = config["H2"]["TAC"]["gisement"] +5 # Nombre de centrales TAC H2 disponibles
 
 # Renewables
 capex_onshore = config["enr"]["onshore"]["capex"] #€/MW
