@@ -1,0 +1,1 @@
+{"energie_totale_MWh":{"production_H2_totale":1.170475647e7,"exces":4.009718283e7,"defaillance":5.86346992e6,"production_hydro":3.57929279e6},"capacites_MW":{"offshore":5000.0,"onshore":15000.0,"solar":50000.0,"battery":7500.0},"H2":{"CCG":{"nombre_installees":13,"production_totale_MWh":1.124433123e7},"TAC":{"nombre_installees":10,"production_totale_MWh":460425.23}}}
