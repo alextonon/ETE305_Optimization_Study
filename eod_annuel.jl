@@ -1,3 +1,4 @@
+
 include("extraction_donnees_excel.jl")
 using JuMP
 using HiGHS
@@ -258,8 +259,8 @@ for week in 1:LAST_WEEK
     @constraint(model, [t in 1:Tmax], Pdecharge_STEP[t] <= Pmax_STEP)
     @constraint(model, stock_STEP[1] == stock_STEP_initial)
     @constraint(model, Pdecharge_STEP[Tmax] <= stock_STEP[Tmax])
-    @constraint(model, stock_STEP[Tmax] == stock_STEP[1])
-    @constraint(model, Pdecharge_STEP[1] == 0)
+    #@constraint(model, stock_STEP[Tmax] == stock_STEP[1])
+    #@constraint(model, Pdecharge_STEP[1] == 0)
     @constraint(model, [t in 1:Tmax-1], stock_STEP[t+1]-stock_STEP[t]- rSTEP*Pcharge_STEP[t]+Pdecharge_STEP[t]== 0)
     @constraint(model, [t in 1:Tmax], stock_STEP[t] <= 24*7*Pmax_STEP)
 
@@ -268,8 +269,8 @@ for week in 1:LAST_WEEK
     @constraint(model, [t in 1:Tmax], Pdecharge_battery[t] <= CapaBattery)
     @constraint(model, stock_battery[1] == stock_battery_initial)
     @constraint(model, Pdecharge_battery[Tmax] <= stock_battery[Tmax])
-    @constraint(model, stock_battery[Tmax] == stock_battery[1])
-    @constraint(model, Pdecharge_battery[1] == 0)
+    #@constraint(model, stock_battery[Tmax] == stock_battery[1])
+    #@constraint(model, Pdecharge_battery[1] == 0)
     @constraint(model, [t in 1:Tmax-1], stock_battery[t+1]-stock_battery[t]- rbattery*Pcharge_battery[t]+1/rbattery*Pdecharge_battery[t]== 0)
     @constraint(model, [t in 1:Tmax], stock_battery[t] <= d_battery*CapaBattery)
 
@@ -431,3 +432,5 @@ evolution_parc = Dict(
 open("results/annual/evolution_parc.json", "w") do f
     JSON3.write(f, evolution_parc; indent=4)
 end
+
+
