@@ -100,6 +100,7 @@ stock_H2_annual = zeros(Nhours)
 Phy_annual  = zeros(Nhours)
 Puns_annual = zeros(Nhours)
 Pexc_annual = zeros(Nhours)
+Pres_annual = zeros(Nhours)
 
 # Conditions initiales pour la première semaine
 global stock_battery_initial = 0
@@ -323,6 +324,7 @@ for week in 1:LAST_WEEK
     @views Phy_annual[idx]  .= value.(Phy[1:Nhours_per_week])
     @views Puns_annual[idx] .= value.(Puns[1:Nhours_per_week])
     @views Pexc_annual[idx] .= value.(Pexc[1:Nhours_per_week])
+    @views Pres_annual[idx] .= value.(Pres[1:Nhours_per_week])
     
     @views load_annual[idx] .= value.(load[1:Nhours_per_week])
     
@@ -354,7 +356,7 @@ end
 
 # --- Export CSV annuel (comme dans ton code) ---
 open("results/annual_stock_H2/results.csv", "w") do f
-    write(f, "t;Solar;Onshore;Offshore;Battery_stock;Battery_charge;Battery_discharge;STEP_stock;STEP_charge;STEP_discharge;H2_CCG;H2_TAC;Hydro;H2_stock;Load;Defailance;Exces\n")
+    write(f, "t;Solar;Onshore;Offshore;Battery_stock;Battery_charge;Battery_discharge;STEP_stock;STEP_charge;STEP_discharge;H2_CCG;H2_TAC;Hydro;H2_stock;hy_th_fatal;Load;Defailance;Exces\n")
     for t in 1:Nhours
         write(f,
             string(
@@ -372,6 +374,7 @@ open("results/annual_stock_H2/results.csv", "w") do f
                 round(sum(PH2_TAC_annual[t, :]), digits=2), ";",
                 round(Phy_annual[t], digits=2), ";",
                 round(stock_H2_annual[t], digits=2), ";",
+                round(Pres_annual[t], digits=2), ";",
                 round(load_annual[t], digits=2), ";",
                 round(Puns_annual[t], digits=2), ";",
                 round(Pexc_annual[t], digits=2),
