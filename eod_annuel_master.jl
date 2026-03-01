@@ -8,12 +8,12 @@ using Random
 
 FIRST_WEEK = 28
 
-H2_ANNUAL_STOCK = false
+H2_ANNUAL_STOCK = true
 H2_NO_LIMIT = false # ne pas cumuler au stockage annuel...
 
 GISEMENTS = true
 
-HYDRO_STOCK_REMAINING = false
+HYDRO_STOCK_REMAINING = true
 
 # -------- Extraction des hypothèses du problèmes --------
 data_file = "data/Donnees_etude_de_cas_ETE305.xlsx"
@@ -78,7 +78,7 @@ end
 
 # Defailance
 cuns = config["defaillance"]["cost_unsupplied"] #cost of unsupplied energy €/MWh
-cexc = config["defaillance"]["cost_excess"] + 1 #cost of in excess energy €/MWh
+cexc = config["defaillance"]["cost_excess"] #cost of in excess energy €/MWh
 
 # Initial capacities 
 CapaSolar_init = config["capacites_init"]["Solar"] #MW
@@ -141,7 +141,6 @@ global CCG_H2_installed_initial = zeros(Int, NH2_CCG_max)
 global TAC_H2_installed_initial = zeros(Int, NH2_TAC_max)
 
 LAST_WEEK = FIRST_WEEK + Nweeks - 1
-LAST_WEEK = FIRST_WEEK + 2
 
 for (i, w) in enumerate(FIRST_WEEK:LAST_WEEK)
     week = i # Simulation week
@@ -206,6 +205,7 @@ for (i, w) in enumerate(FIRST_WEEK:LAST_WEEK)
     @variable(model, Pcharge_battery[1:Tmax] >= 0)
     @variable(model, Pdecharge_battery[1:Tmax] >= 0)
     @variable(model, stock_battery[1:Tmax] >= 0)
+    @variable(model, charging_battery[1:Tmax], Bin) # 1 si la batterie charge à t, 0 sinon (pour éviter de charger et décharger en même temps)
 
     # Stockage et volume H2
     if H2_ANNUAL_STOCK
@@ -318,6 +318,9 @@ for (i, w) in enumerate(FIRST_WEEK:LAST_WEEK)
     #@constraint(model, Pdecharge_battery[1] == 0)
     @constraint(model, [t in 1:Tmax-1], stock_battery[t+1]-stock_battery[t]- rbattery*Pcharge_battery[t]+1/rbattery*Pdecharge_battery[t]== 0)
     @constraint(model, [t in 1:Tmax], stock_battery[t] <= d_battery*CapaBattery)
+
+    @constraint(model, [t in 1:Tmax], Pcharge_battery[t] <= CapaBattery_max * charging_battery[t])
+    @constraint(model, [t in 1:Tmax], Pdecharge_battery[t] <= CapaBattery_max * (1 - charging_battery[t]))
     
     optimize!(model)
 
