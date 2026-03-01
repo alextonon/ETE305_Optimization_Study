@@ -92,15 +92,15 @@ Nhours_per_week = 7*24
 Nhours = Nweeks * Nhours_per_week
 
 # Capacités initiales par technologie
-solar_capacities = fill(CapaSolar_init, Nweeks)
-offshore_capacities = fill(CapaOffshore_init, Nweeks)
-onshore_capacities = fill(CapaOnshore_init, Nweeks)
-battery_capacities = fill(CapaBattery_init, Nweeks)
-installed_CCG_H2 = fill(0, Nweeks)
-installed_TAC_H2 = fill(0, Nweeks)
+solar_capacities = fill(CapaSolar_init, Nweeks+1)
+offshore_capacities = fill(CapaOffshore_init, Nweeks+1)
+onshore_capacities = fill(CapaOnshore_init, Nweeks+1)
+battery_capacities = fill(CapaBattery_init, Nweeks+1)
+installed_CCG_H2 = fill(0, Nweeks+1)
+installed_TAC_H2 = fill(0, Nweeks+1)
 
 # Stock Hydro
-hydro_utilization_rate = zeros(Nweeks)
+hydro_utilization_rate = zeros(Nweeks+1)
 hydro_utilization_annual = zeros(Nhours)
 
 # Tableaux horaires annuels pour stocker les résultats de dispatch
@@ -397,11 +397,19 @@ for (i, w) in enumerate(FIRST_WEEK:LAST_WEEK)
 end
 
 open(base_de_resultats, "r") do f
-    test = read(f, String)
-    id = parse(Int,(split(split(test, "\n")[end],";")[1]))
+    lignes = readlines(f)
+    lignes_non_vides = filter(!isempty, lignes)
+    
+    if isempty(lignes_non_vides)
+        global id = 0
+    else
+        derniere_ligne = lignes_non_vides[end]
+        valeurs = split(derniere_ligne, ";")
+        
+        id_temp = tryparse(Int, valeurs[1])
+        global id = isnothing(id_temp) ? 0 : id_temp
+    end
 end
-
-global id
 
 if id == "ID"
     id = 0
@@ -494,22 +502,22 @@ end
 println("Fichier parc_annuel.json généré avec succès ✅")
 
 evolution_parc = Dict(
-    "semaine" => 1:LAST_WEEK,
+    "semaine" => 1:Nweeks,
     "capacites_MW" => Dict(
-        "onshore" => onshore_capacities[1:LAST_WEEK],
-        "offshore" => offshore_capacities[1:LAST_WEEK],
-        "solar" => solar_capacities[1:LAST_WEEK],
-        "battery" => battery_capacities[1:LAST_WEEK]
-    ),
+        "onshore" => onshore_capacities[1:Nweeks],
+        "offshore" => offshore_capacities[1:Nweeks],
+        "solar" => solar_capacities[1:Nweeks],
+            "battery" => battery_capacities[1:Nweeks]
+        ),
     "H2" => Dict(
         "CCG" => Dict(
-            "nombre_installees" => installed_CCG_H2[1:LAST_WEEK],
-            "production_totale_MWh" => [round(sum(value.(PH2_CCG_annual)), digits=2) for week in 1:LAST_WEEK]
+            "nombre_installees" => installed_CCG_H2[1:Nweeks],
+            "production_totale_MWh" => [round(sum(value.(PH2_CCG_annual)), digits=2) for week in 1:Nweeks]
         ),
 
         "TAC" => Dict(
-            "nombre_installees" => installed_TAC_H2[1:LAST_WEEK],
-            "production_totale_MWh" => [round(sum(value.(PH2_TAC_annual)), digits=2) for week in 1:LAST_WEEK]
+            "nombre_installees" => installed_TAC_H2[1:Nweeks],
+            "production_totale_MWh" => [round(sum(value.(PH2_TAC_annual)), digits=2) for week in 1:Nweeks]
         )
     )
 )
