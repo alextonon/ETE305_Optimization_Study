@@ -7,7 +7,6 @@ using XLSX
 
 Tweek = 168 #optimization for 1 week (7*24=168 hours)
 Tguard = 24
-
 Tmax = Tweek + Tguard
 
 #data for load and fatal generation
