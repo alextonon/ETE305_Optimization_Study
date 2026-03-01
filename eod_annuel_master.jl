@@ -8,10 +8,10 @@ using Random
 
 FIRST_WEEK = 28
 
-H2_ANNUAL_STOCK = true
+H2_ANNUAL_STOCK = false
 H2_NO_LIMIT = false # ne pas cumuler au stockage annuel...
 
-GISEMENTS = false
+GISEMENTS = true
 
 HYDRO_STOCK_REMAINING = false
 
@@ -78,7 +78,7 @@ end
 
 # Defailance
 cuns = config["defaillance"]["cost_unsupplied"] #cost of unsupplied energy €/MWh
-cexc = config["defaillance"]["cost_excess"] #cost of in excess energy €/MWh
+cexc = config["defaillance"]["cost_excess"] + 1 #cost of in excess energy €/MWh
 
 # Initial capacities 
 CapaSolar_init = config["capacites_init"]["Solar"] #MW
@@ -141,6 +141,7 @@ global CCG_H2_installed_initial = zeros(Int, NH2_CCG_max)
 global TAC_H2_installed_initial = zeros(Int, NH2_TAC_max)
 
 LAST_WEEK = FIRST_WEEK + Nweeks - 1
+LAST_WEEK = FIRST_WEEK + 2
 
 for (i, w) in enumerate(FIRST_WEEK:LAST_WEEK)
     week = i # Simulation week
@@ -149,7 +150,7 @@ for (i, w) in enumerate(FIRST_WEEK:LAST_WEEK)
     t_start = now()
     println("Itération $i/$Nweeks | Semaine calendaire $current_week | Début : $t_start")
 
-    time_series = extraire_donnees_semaine(data_file, current_week, AnneauGarde=24)
+    time_series = extraire_donnees_semaine(data_file, current_week, AnneauGarde=10)
 
     Tmax = time_series["Tmax"]
 
@@ -303,7 +304,6 @@ for (i, w) in enumerate(FIRST_WEEK:LAST_WEEK)
     # weekly STEP
     @constraint(model, [t in 1:Tmax], Pcharge_STEP[t] <= Pmax_STEP)
     @constraint(model, [t in 1:Tmax], Pdecharge_STEP[t] <= Pmax_STEP)
-    @constraint(model, stock_STEP[1] == stock_STEP_initial)
     @constraint(model, Pdecharge_STEP[Tmax] <= stock_STEP[Tmax])
     #@constraint(model, stock_STEP[Tmax] == stock_STEP[1])
     #@constraint(model, Pdecharge_STEP[1] == 0)
@@ -313,17 +313,11 @@ for (i, w) in enumerate(FIRST_WEEK:LAST_WEEK)
     # #battery
     @constraint(model, [t in 1:Tmax], Pcharge_battery[t] <= CapaBattery)
     @constraint(model, [t in 1:Tmax], Pdecharge_battery[t] <= CapaBattery)
-    # @constraint(model, stock_battery[1] == stock_battery_initial) définie 2 fois
     @constraint(model, Pdecharge_battery[Tmax] <= stock_battery[Tmax])
     #@constraint(model, stock_battery[Tmax] == stock_battery[1])
     #@constraint(model, Pdecharge_battery[1] == 0)
     @constraint(model, [t in 1:Tmax-1], stock_battery[t+1]-stock_battery[t]- rbattery*Pcharge_battery[t]+1/rbattery*Pdecharge_battery[t]== 0)
     @constraint(model, [t in 1:Tmax], stock_battery[t] <= d_battery*CapaBattery)
-    @variable(model, is_charging[1:Tmax], Bin) # 1 si charge, 0 si décharge
-
-    # Pmax est la puissance maximale de ta batterie
-    @constraint(model, [t in 1:Tmax], Pcharge_battery[t] <= is_charging[t] * CapaBattery_max)
-    @constraint(model, [t in 1:Tmax], Pdecharge_battery[t] <= (1 - is_charging[t]) * CapaBattery_max)
     
     optimize!(model)
 
