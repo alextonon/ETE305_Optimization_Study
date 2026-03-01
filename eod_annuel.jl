@@ -95,10 +95,11 @@ TAC_H2_running_annual = zeros(Nhours, NH2_TAC_max)
 PH2_CCG_annual        = zeros(Nhours, NH2_CCG_max)
 PH2_TAC_annual        = zeros(Nhours, NH2_TAC_max)
 
-# Hydro / defaillance / excès
+# Hydro / defaillance / excès / hydro et thermique fatal
 Phy_annual  = zeros(Nhours)
 Puns_annual = zeros(Nhours)
 Pexc_annual = zeros(Nhours)
+Pres_annual = zeros(Nhours)
 
 # Conditions initiales pour la première semaine
 global stock_battery_initial = 0
@@ -211,7 +212,7 @@ for week in 1:LAST_WEEK
     @constraint(model, stock_STEP[1] == stock_STEP_initial)
 
     #balance constraint
-    @constraint(model, balance[t in 1:Tmax], sum(PH2_CCG[t,g] for g in 1:NH2_CCG_max) + sum(PH2_TAC[t,g] for g in 1:NH2_TAC_max) + Phy[t] + CapaSolar * solar_load_factor[t] + CapaOffshore * offshore_load_factor[t] + CapaOnshore * onshore_load_factor[t] + Puns[t] - load[t] - Pexc[t] - Pcharge_STEP[t] + Pdecharge_STEP[t] - Pcharge_battery[t] + Pdecharge_battery[t] == 0)
+    @constraint(model, balance[t in 1:Tmax], sum(PH2_CCG[t,g] for g in 1:NH2_CCG_max) + sum(PH2_TAC[t,g] for g in 1:NH2_TAC_max) + Phy[t] + Pres[t] + CapaSolar * solar_load_factor[t] + CapaOffshore * offshore_load_factor[t] + CapaOnshore * onshore_load_factor[t] - Pcharge_STEP[t] + Pdecharge_STEP[t] - Pcharge_battery[t] + Pdecharge_battery[t] + Puns[t] - load[t] - Pexc[t]  == 0)
 
     # H2 Power constraints
     @constraint(model, max_CCG_H2[t in 1:Tmax, i in 1:NH2_CCG_max], PH2_CCG[t,i] <= Pmax_CCG_h2*CCG_H2_running[t,i]) #Pmax constraints
@@ -312,6 +313,7 @@ for week in 1:LAST_WEEK
     @views Phy_annual[idx]  .= value.(Phy[1:Nhours_per_week])
     @views Puns_annual[idx] .= value.(Puns[1:Nhours_per_week])
     @views Pexc_annual[idx] .= value.(Pexc[1:Nhours_per_week])
+    @views Pres_annual[idx] .= Pres[1:Nhours_per_week]
     
     @views load_annual[idx] .= value.(load[1:Nhours_per_week])
     
@@ -342,7 +344,7 @@ end
 
 # --- Export CSV annuel (comme dans ton code) ---
 open("results/annual/results.csv", "w") do f
-    write(f, "t;Solar;Onshore;Offshore;Battery_stock;Battery_charge;Battery_discharge;STEP_stock;STEP_charge;STEP_discharge;H2_CCG;H2_TAC;Hydro;Load;Defailance;Exces\n")
+    write(f, "t;Solar;Onshore;Offshore;Battery_stock;Battery_charge;Battery_discharge;STEP_stock;STEP_charge;STEP_discharge;H2_CCG;H2_TAC;Hydro;hy_th_fatal;Load;Defailance;Exces\n")
     for t in 1:Nhours
         write(f,
             string(
@@ -359,6 +361,7 @@ open("results/annual/results.csv", "w") do f
                 round(sum(PH2_CCG_annual[t, :]), digits=2), ";",
                 round(sum(PH2_TAC_annual[t, :]), digits=2), ";",
                 round(Phy_annual[t], digits=2), ";",
+                round(Pres_annual[t], digits=2), ";",
                 round(load_annual[t], digits=2), ";",
                 round(Puns_annual[t], digits=2), ";",
                 round(Pexc_annual[t], digits=2),
