@@ -2,6 +2,7 @@ include("utils/extraction_donnees_excel.jl")
 using JuMP
 using HiGHS
 using Dates
+using Random
 
 # -------- Configuration ---------
 
@@ -12,7 +13,7 @@ H2_NO_LIMIT = false # ne pas cumuler au stockage annuel...
 
 GISEMENTS = false
 
-HYDRO_STOCK_REMAINING = true
+HYDRO_STOCK_REMAINING = false
 
 # -------- Extraction des hypothèses du problèmes --------
 data_file = "data/Donnees_etude_de_cas_ETE305.xlsx"
@@ -318,6 +319,11 @@ for (i, w) in enumerate(FIRST_WEEK:LAST_WEEK)
     #@constraint(model, Pdecharge_battery[1] == 0)
     @constraint(model, [t in 1:Tmax-1], stock_battery[t+1]-stock_battery[t]- rbattery*Pcharge_battery[t]+1/rbattery*Pdecharge_battery[t]== 0)
     @constraint(model, [t in 1:Tmax], stock_battery[t] <= d_battery*CapaBattery)
+    @variable(model, is_charging[1:Tmax], Bin) # 1 si charge, 0 si décharge
+
+    # Pmax est la puissance maximale de ta batterie
+    @constraint(model, [t in 1:Tmax], Pcharge_battery[t] <= is_charging[t] * CapaBattery_max)
+    @constraint(model, [t in 1:Tmax], Pdecharge_battery[t] <= (1 - is_charging[t]) * CapaBattery_max)
     
     optimize!(model)
 
