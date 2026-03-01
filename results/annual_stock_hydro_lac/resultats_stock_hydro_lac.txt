@@ -1,0 +1,6 @@
+/contrainte_hydro_stock_egal_prod :
+
+Dans ce dossier se trouve les resultats du fichier eod_annuel_stock_hydro_lac lancé le 28/02/2026 où : 
+
+    modification apportée : @constraint(model, sum(Phy[t] for t in 1:Tmax) == e_hy_lacs)
+    ancienne version : '<=' au lieu de '=='
