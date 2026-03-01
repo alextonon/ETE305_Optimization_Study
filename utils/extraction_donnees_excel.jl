@@ -91,6 +91,15 @@ function extraire_donnees_config(data_file::String)
         "Offshore" => gisement_offshore
     )
 
+
+    RendementElectrolyse = XLSX.readdata(data_file, "Rendements", "B8") # Rendement de l'électrolyse
+    RendementCombustion = XLSX.readdata(data_file, "Rendements", "B11") # Rendement de la combustion de l'hydrogène
+
+    rendements = Dict(
+        "electrolyse" => RendementElectrolyse,
+        "combustion" => RendementCombustion
+    )
+
     # CAPEX / OPEX / Durée de vie
     CAPEX = XLSX.readdata(data_file, "Investissements", "B2:B11")
     OPEX = XLSX.readdata(data_file, "Investissements", "C2:C11")
@@ -166,6 +175,7 @@ function extraire_donnees_config(data_file::String)
         "H2" => H2,
         "hydro" => hydro,
         "battery" => battery,
-        "defaillance" => defaillance
+        "defaillance" => defaillance,
+        "rendements" => rendements
     )
 end

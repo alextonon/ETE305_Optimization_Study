@@ -179,7 +179,6 @@ for week in 1:LAST_WEEK
     @variable(model, Pdecharge_battery[1:Tmax] >= 0)
     @variable(model, stock_battery[1:Tmax] >= 0)
 
-
     set_start_value.(CapaOnshore, onshore_capacities[week])
     set_start_value.(CapaOffshore, offshore_capacities[week])
     set_start_value.(CapaSolar, solar_capacities[week])
@@ -411,7 +410,8 @@ parc = Dict(
         "defaillance" => round(sum(value.(Puns_annual)), digits=2),
         "exces" => round(sum(value.(Pexc_annual)), digits=2),
         "production_H2_totale" => round(sum(value.(PH2_CCG_annual)) + sum(value.(PH2_TAC_annual)), digits=2),
-        "production_hydro" => round(sum(value.(Phy_annual)), digits=2)
+        "production_hydro" => round(sum(value.(Phy_annual)), digits=2),
+        "stock_H2" => round(stock_H2_annual[end], digits=2)
     )
 )
 

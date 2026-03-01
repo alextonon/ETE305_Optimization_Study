@@ -1,19 +1,27 @@
-
 include("utils/extraction_donnees_excel.jl")
 using JuMP
 using HiGHS
 using Dates
 
-data_file = "data/Donnees_etude_de_cas_ETE305.xlsx"
+# -------- Configuration ---------
+
+H2_ANNUAL_STOCK = true
+H2_NO_LIMIT = false # ne pas cumuler au stockage annuel...
+
+GISEMENTS = true
+
+HYDRO_STOCK_REMAINING = true
 
 # -------- Extraction des hypothèses du problèmes --------
+data_file = "data/Donnees_etude_de_cas_ETE305.xlsx"
+base_de_resultats = "results/base_de_données_résultats.csv"
 config = extraire_donnees_config(data_file)
 
 # Data for h2 clusters
 capex_CCG_H2 = config["H2"]["CCG"]["capex"] #€/MW
 opex_CCG_H2 = config["H2"]["CCG"]["opex"] #€/MW/year
 PU_cost_h2_CCG = config["H2"]["CCG"]["PU_cost"] #€/MWh basé sur le tarif de prod de la centrale CCG gaz A MODIFIER
-NH2_CCG_max = config["H2"]["CCG"]["gisement"] +5  # Nombre de centrales CCG H2 disponibles
+NH2_CCG_max = config["H2"]["CCG"]["gisement"]
 Pmin_CCG_h2 = config["H2"]["CCG"]["Pmin"] #MW idem
 Pmax_CCG_h2 = config["H2"]["CCG"]["Pmax"] #MW idem
 dmin_CCG = config["H2"]["CCG"]["dmin"]#hours idem
@@ -26,12 +34,9 @@ Pmax_TAC_h2 = config["H2"]["TAC"]["Pmax"] #MW idem
 dmin_TAC = config["H2"]["TAC"]["dmin"] #hours idem
 NH2_TAC_max = config["H2"]["TAC"]["gisement"] +5 # Nombre de centrales TAC H2 disponibles
 
-RendementElectrolyse = XLSX.readdata(data_file, "Rendements", "B8") # Rendement de l'électrolyse
-RendementCombustion = XLSX.readdata(data_file, "Rendements", "B11") # Rendement de la combustion de l'hydrogène
-println("DEBUG CHECK --------")
+RendementElectrolyse = config["rendements"]["electrolyse"] # Rendement de l'électrolyse
+RendementCombustion = config["rendements"]["combustion"] # Rendement de la combustion de l'
 
-@show RendementElectrolyse
-@show RendementCombustion
 # Renewables
 capex_onshore = config["enr"]["onshore"]["capex"]/config["enr"]["onshore"]["duree_vie"]/52 #€/MW
 capex_offshore = config["enr"]["offshore_pose"]["capex"]/config["enr"]["offshore_pose"]["duree_vie"]/52 #€/MW
@@ -41,10 +46,9 @@ opex_onshore = config["enr"]["onshore"]["opex"] #€/MW
 opex_offshore = config["enr"]["offshore_pose"]["opex"] #€/MW
 opex_solar = config["enr"]["pv_pose"]["opex"] #€/MW
 
-CapaSolar_max = config["enr"]["gisement"]["Solar"] +70000#MW
-CapaOnshore_max = config["enr"]["gisement"]["Onshore"] + 20000 #MW
-CapaOffshore_max = config["enr"]["gisement"]["Offshore"] + 20000#MW
-
+CapaSolar_max = config["enr"]["gisement"]["Solar"] #MW
+CapaOnshore_max = config["enr"]["gisement"]["Onshore"] #MW
+CapaOffshore_max = config["enr"]["gisement"]["Offshore"] #MW
 
 # Hydro
 Pmin_hy_lacs = 0
@@ -57,6 +61,16 @@ capex_2h_battery = config["battery"]["capex"] #€/MW
 opex_2h_battery = config["battery"]["opex"] #€/MW
 rbattery = config["battery"]["rendement"] # rendement de la batterie au sockage ou au destockage
 d_battery = config["battery"]["d_battery"] #hours
+CapaBattery_max = config["battery"]["gisement"] #MW
+
+if GISEMENTS == false
+    CapaSolar_max = CapaSolar_max + 25000
+    CapaOnshore_max = CapaOnshore_max + 25000
+    CapaBattery_max = CapaBattery_max + 25000
+    CapaOffshore_max = CapaOffshore_max + 25000
+    NH2_CCG_max = NH2_CCG_max + 5
+    NH2_TAC_max = NH2_TAC_max + 5
+end
 
 # Defailance
 cuns = config["defaillance"]["cost_unsupplied"]  #cost of unsupplied energy €/MWh
@@ -66,7 +80,6 @@ cexc = config["defaillance"]["cost_excess"] #cost of in excess energy €/MWh
 CapaSolar_init = config["capacites_init"]["Solar"] #MW
 CapaOffshore_init = config["capacites_init"]["Offshore"] #MW
 CapaOnshore_init = config["capacites_init"]["Onshore"] #MW
-CapaBattery_max = config["battery"]["gisement"] #MW
 CapaBattery_init = 0 #MW
 
 # ----------------- Définition des variables annuelles -----------------
@@ -82,6 +95,12 @@ onshore_capacities = fill(CapaOnshore_init, Nweeks+1)
 battery_capacities = fill(CapaBattery_init, Nweeks+1)
 installed_CCG_H2 = fill(0, Nweeks+1)
 installed_TAC_H2 = fill(0, Nweeks+1)
+
+# Stock Hydro
+hydro_stock_remaining = zeros(Nweeks+1)
+hydro_stock_available = zeros(Nweeks+1)
+hydro_utilization_rate = zeros(Nweeks+1)
+hydro_utilization_annual = zeros(Nhours)
 
 # Tableaux horaires annuels pour stocker les résultats de dispatch
 solar_annual      = zeros(Nhours)
@@ -101,6 +120,8 @@ TAC_H2_running_annual = zeros(Nhours, NH2_TAC_max)
 PH2_CCG_annual        = zeros(Nhours, NH2_CCG_max)
 PH2_TAC_annual        = zeros(Nhours, NH2_TAC_max)
 
+stock_H2_annual = zeros(Nhours)
+
 # Hydro / defaillance / excès / hydro et thermique fatal
 Phy_annual  = zeros(Nhours)
 Puns_annual = zeros(Nhours)
@@ -110,6 +131,8 @@ Pres_annual = zeros(Nhours)
 # Conditions initiales pour la première semaine
 global stock_battery_initial = 0
 global stock_STEP_initial    = 0
+global stock_hydro_lac_initial = 0.0
+global stock_H2_initial = 1e7
 
 global CCG_H2_running_initial = zeros(Int, NH2_CCG_max)
 global TAC_H2_running_initial = zeros(Int, NH2_TAC_max)
@@ -117,8 +140,7 @@ global TAC_H2_running_initial = zeros(Int, NH2_TAC_max)
 global CCG_H2_installed_initial = zeros(Int, NH2_CCG_max)
 global TAC_H2_installed_initial = zeros(Int, NH2_TAC_max)
 
-FIRST_WEEK = 51
-Nweeks = 52 # On veut simuler 52 semaines au total
+FIRST_WEEK = 28
 LAST_WEEK = FIRST_WEEK + Nweeks - 1
 
 for (i, w) in enumerate(FIRST_WEEK:LAST_WEEK)
@@ -128,8 +150,7 @@ for (i, w) in enumerate(FIRST_WEEK:LAST_WEEK)
     t_start = now()
     println("Itération $i/$Nweeks | Semaine calendaire $current_week | Début : $t_start")
 
-    # 2. Extraction des données avec la semaine RÉELLE
-    time_series = extraire_donnees_semaine(data_file, current_week, AnneauGarde=24)
+    time_series = extraire_donnees_semaine(data_file, week, AnneauGarde=24)
 
     Tmax = time_series["Tmax"]
 
@@ -138,14 +159,14 @@ for (i, w) in enumerate(FIRST_WEEK:LAST_WEEK)
     onshore_load_factor = time_series["onshore_load_factor"]
     solar_load_factor = time_series["solar_load_factor"]
     hydro_fatal = time_series["hydro_fatal"]
-    e_hy_lacs = time_series["Usable_per_week_hydro_lacs"]
+    e_hy_lacs = time_series["Usable_per_week_hydro_lacs"] + stock_hydro_lac_initial
     thermique_fatal = time_series["thermique_fatal"]
 
     Pres = hydro_fatal + thermique_fatal
 
     ########## Defining model ##########
     model = Model(HiGHS.Optimizer)
-    set_optimizer_attribute(model, "mip_rel_gap", 0.005) # S'arrête à 0.5%
+    set_optimizer_attribute(model, "mip_rel_gap", 0.01) # S'arrête à 0.5%
 
     ########## Defining variables ##########
     #energie renouvelables
@@ -185,6 +206,20 @@ for (i, w) in enumerate(FIRST_WEEK:LAST_WEEK)
     @variable(model, Pcharge_battery[1:Tmax] >= 0)
     @variable(model, Pdecharge_battery[1:Tmax] >= 0)
     @variable(model, stock_battery[1:Tmax] >= 0)
+
+    # Stockage et volume H2
+    if H2_ANNUAL_STOCK
+        @variable(model, stock_H2[1:Tmax] >= 0)
+
+        @constraint(model, stock_H2[1] == stock_H2_initial + (Pexc[1]*RendementElectrolyse) - (sum(PH2_CCG[1,g] for g in 1:NH2_CCG_max) + sum(PH2_TAC[1,g] for g in 1:NH2_TAC_max))/RendementCombustion)
+        @constraint(model, stock_H2_balance[t in 2:Tmax], 
+            stock_H2[t] == stock_H2[t-1] 
+            + (Pexc[t] * RendementElectrolyse)      # Ce qu'on transforme en H2
+            - (sum(PH2_CCG[t,g] for g in 1:NH2_CCG_max) + sum(PH2_TAC[t,g] for g in 1:NH2_TAC_max)) / RendementCombustion           # Ce qu'on puise pour faire de l'élec
+        )
+    elseif H2_NO_LIMIT == false
+        @constraint(model, sum(PH2_CCG[t,g] for t in 1:Tmax, g in 1:NH2_CCG_max) + sum(PH2_TAC[t,g] for t in 1:Tmax, g in 1:NH2_TAC_max) <= sum(Pexc[t] for t in 1:Tmax)*RendementCombustion*RendementElectrolyse)
+    end
 
 
     set_start_value.(CapaOnshore, onshore_capacities[week])
@@ -256,9 +291,6 @@ for (i, w) in enumerate(FIRST_WEEK:LAST_WEEK)
             end
         end
 
-    # H2 volume constraints
-    @constraint(model, sum(PH2_CCG[t,g] for t in 1:Tmax, g in 1:NH2_CCG_max) + sum(PH2_TAC[t,g] for t in 1:Tmax, g in 1:NH2_TAC_max) <= sum(Pexc[t] for t in 1:Tmax)*RendementCombustion*RendementElectrolyse)
-
     # hydro unit constraints
     @constraint(model, [t=1:Tmax], Phy[t] >= Pmin_hy_lacs)
     @constraint(model, [t=1:Tmax], Phy[t] <= Pmax_hy_lacs)
@@ -290,8 +322,6 @@ for (i, w) in enumerate(FIRST_WEEK:LAST_WEEK)
     #Results
     # @show termination_status(model)
     # @show objective_value(model)
-
-
     
     # --- Stockage des résultats horaires dans les tableaux annuels ---
     t_start = (week-1)*Nhours_per_week + 1
@@ -326,17 +356,31 @@ for (i, w) in enumerate(FIRST_WEEK:LAST_WEEK)
     @views Pres_annual[idx] .= Pres[1:Nhours_per_week]
     
     @views load_annual[idx] .= value.(load[1:Nhours_per_week])
+
+    if H2_ANNUAL_STOCK
+        @views stock_H2_annual[idx] .= value.(stock_H2[1:Nhours_per_week])
+    end
+    if HYDRO_STOCK_REMAINING
+        production_hydro_week = sum(value.(Phy))
+        remaining_hydro = e_hy_lacs - production_hydro_week
+        hydro_utilization_rate[week] = production_hydro_week / e_hy_lacs
+        @views hydro_utilization_annual[idx] .= hydro_utilization_rate[week]
+
+        global stock_hydro_lac_initial = remaining_hydro
+    end
     
     # --- Mise à jour des capacités pour la semaine suivante (évolution du parc) ---
     solar_capacities[week:week+1]    .= round(Int, value(CapaSolar))
     onshore_capacities[week:week+1]  .= round(Int, value(CapaOnshore))
     offshore_capacities[week:week+1] .= round(Int, value(CapaOffshore))
     battery_capacities[week:week+1]  .= round(Int, value(CapaBattery))
-
     
     # --- Stock initial pour la semaine suivante ---
     global stock_battery_initial = value(stock_battery[Tmax])
     global stock_STEP_initial    = value(stock_STEP[Tmax])
+    if H2_ANNUAL_STOCK
+        global stock_H2_initial = value(stock_H2[Tmax])
+    end
 
     last_CCG_H2_running = value.(CCG_H2_running[Tmax, :])
     last_TAC_H2_running = value.(TAC_H2_running[Tmax, :])
@@ -352,9 +396,21 @@ for (i, w) in enumerate(FIRST_WEEK:LAST_WEEK)
     
 end
 
+open(base_de_resultats, "r") do f
+    test = read(f, String)
+    id = parse(Int,(split(split(test, "\n")[end],";")[1]))
+end
+
+if id == "ID"
+    id = 0
+else 
+    id = id +1
+end
+
+
 # --- Export CSV annuel (comme dans ton code) ---
-open("results/annual/results.csv", "w") do f
-    write(f, "t;Solar;Onshore;Offshore;Battery_stock;Battery_charge;Battery_discharge;STEP_stock;STEP_charge;STEP_discharge;H2_CCG;H2_TAC;Hydro;hy_th_fatal;Load;Defailance;Exces\n")
+open("results/annual_master/results.csv", "w") do f
+    write(f, "t;Solar;Onshore;Offshore;Battery_stock;Battery_charge;Battery_discharge;STEP_stock;STEP_charge;STEP_discharge;H2_CCG;H2_TAC;H2_Stock;Hydro;Hydro_lac_utilization_rate;hy_th_fatal;Load;Defailance;Exces\n")
     for t in 1:Nhours
         write(f,
             string(
@@ -370,7 +426,9 @@ open("results/annual/results.csv", "w") do f
                 round(STEP_discharge_annual[t], digits=2), ";",
                 round(sum(PH2_CCG_annual[t, :]), digits=2), ";",
                 round(sum(PH2_TAC_annual[t, :]), digits=2), ";",
+                round(stock_H2_annual[t], digits=2), ";",
                 round(Phy_annual[t], digits=2), ";",
+                round(hydro_utilization_annual[t], digits=2), ";",
                 round(Pres_annual[t], digits=2), ";",
                 round(load_annual[t], digits=2), ";",
                 round(Puns_annual[t], digits=2), ";",
@@ -386,10 +444,10 @@ using JSON3
 # Construction du dictionnaire annuel
 parc = Dict(
     "capacites_MW" => Dict(
-        "onshore" => round(value(onshore_capacities[LAST_WEEK]), digits=2),
-        "offshore" => round(value(offshore_capacities[LAST_WEEK]), digits=2),
-        "solar" => round(value(solar_capacities[LAST_WEEK]), digits=2),
-        "battery" => round(value(battery_capacities[LAST_WEEK]), digits=2)
+        "onshore" => round(value(onshore_capacities[Nweeks]), digits=2),
+        "offshore" => round(value(offshore_capacities[Nweeks]), digits=2),
+        "solar" => round(value(solar_capacities[Nweeks]), digits=2),
+        "battery" => round(value(battery_capacities[Nweeks]), digits=2)
     ),
 
 "H2" => Dict(
@@ -414,7 +472,7 @@ parc = Dict(
 
 
 # Écriture dans fichier JSON
-open("results/annual/parc_annuel.json", "w") do f
+open("results/annual_master/parc_annuel.json", "w") do f
     JSON3.write(f, parc; indent=4)
 end
 
@@ -442,8 +500,6 @@ evolution_parc = Dict(
 )
 
 # Écriture dans fichier JSON
-open("results/annual/evolution_parc.json", "w") do f
+open("results/annual_master/evolution_parc.json", "w") do f
     JSON3.write(f, evolution_parc; indent=4)
 end
-
-
