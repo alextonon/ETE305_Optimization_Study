@@ -313,7 +313,7 @@ for (i, w) in enumerate(FIRST_WEEK:LAST_WEEK)
     # #battery
     @constraint(model, [t in 1:Tmax], Pcharge_battery[t] <= CapaBattery)
     @constraint(model, [t in 1:Tmax], Pdecharge_battery[t] <= CapaBattery)
-    @constraint(model, stock_battery[1] == stock_battery_initial)
+    # @constraint(model, stock_battery[1] == stock_battery_initial) définie 2 fois
     @constraint(model, Pdecharge_battery[Tmax] <= stock_battery[Tmax])
     #@constraint(model, stock_battery[Tmax] == stock_battery[1])
     #@constraint(model, Pdecharge_battery[1] == 0)
