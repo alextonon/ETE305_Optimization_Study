@@ -148,7 +148,7 @@ function extraire_donnees_config(data_file::String)
     battery = Dict(
         "opex" => centrales["batterie"]["opex"]/52, #€/MW/semaine
         "duree_vie" => centrales["batterie"]["duree_vie"],
-        "capex" => centrales["batterie"]["capex"]/Duree_vie[10]/52, #€/MW/semaine
+        "capex" => centrales["batterie"]["capex"]/centrales["batterie"]["duree_vie"]/52, #€/MW/semaine
         "rendement" => rbattery,
         "d_battery" => d_battery,
         "CapaBattery_init" => CapaBattery_init,

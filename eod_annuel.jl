@@ -251,7 +251,6 @@ for week in 1:LAST_WEEK
         end
 
     # H2 volume constraints
-    
     @constraint(model, sum(PH2_CCG[t,g] for t in 1:Tmax, g in 1:NH2_CCG_max) + sum(PH2_TAC[t,g] for t in 1:Tmax, g in 1:NH2_TAC_max) <= sum(Pexc[t] for t in 1:Tmax)*RendementCombustion*RendementElectrolyse)
 
     # hydro unit constraints
