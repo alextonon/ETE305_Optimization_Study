@@ -15,6 +15,7 @@ HYDRO_STOCK_REMAINING = true
 # -------- Extraction des hypothèses du problèmes --------
 data_file = "data/Donnees_etude_de_cas_ETE305.xlsx"
 base_de_resultats = "results/base_de_données_résultats.csv"
+
 config = extraire_donnees_config(data_file)
 
 # Data for h2 clusters
@@ -32,15 +33,15 @@ PU_cost_h2_TAC = config["H2"]["TAC"]["PU_cost"] #€/MWh basé sur le tarif de p
 Pmin_TAC_h2 = config["H2"]["TAC"]["Pmin"] #MW idem
 Pmax_TAC_h2 = config["H2"]["TAC"]["Pmax"] #MW idem
 dmin_TAC = config["H2"]["TAC"]["dmin"] #hours idem
-NH2_TAC_max = config["H2"]["TAC"]["gisement"] +5 # Nombre de centrales TAC H2 disponibles
+NH2_TAC_max = config["H2"]["TAC"]["gisement"] # Nombre de centrales TAC H2 disponibles
 
 RendementElectrolyse = config["rendements"]["electrolyse"] # Rendement de l'électrolyse
 RendementCombustion = config["rendements"]["combustion"] # Rendement de la combustion de l'
 
 # Renewables
-capex_onshore = config["enr"]["onshore"]["capex"]/config["enr"]["onshore"]["duree_vie"]/52 #€/MW
-capex_offshore = config["enr"]["offshore_pose"]["capex"]/config["enr"]["offshore_pose"]["duree_vie"]/52 #€/MW
-capex_solar = config["enr"]["pv_pose"]["capex"]/config["enr"]["pv_pose"]["duree_vie"]/52 #€/MW
+capex_onshore = config["enr"]["onshore"]["capex"] #€/MW
+capex_offshore = config["enr"]["offshore_pose"] #€/MW
+capex_solar = config["enr"]["pv_pose"]["capex"] #€/MW
 
 opex_onshore = config["enr"]["onshore"]["opex"] #€/MW
 opex_offshore = config["enr"]["offshore_pose"]["opex"] #€/MW
