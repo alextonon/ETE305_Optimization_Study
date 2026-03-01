@@ -7,12 +7,12 @@ using Dates
 
 FIRST_WEEK = 28
 
-H2_ANNUAL_STOCK = true
+H2_ANNUAL_STOCK = false
 H2_NO_LIMIT = false # ne pas cumuler au stockage annuel...
 
 GISEMENTS = true
 
-HYDRO_STOCK_REMAINING = false
+HYDRO_STOCK_REMAINING = true
 
 # -------- Extraction des hypothèses du problèmes --------
 data_file = "data/Donnees_etude_de_cas_ETE305.xlsx"
@@ -426,6 +426,7 @@ open(base_de_resultats, "a") do f
             GISEMENTS, ";",
             HYDRO_STOCK_REMAINING, ";",
             FIRST_WEEK, ";",
+            "\n"
         )
     )
 end
