@@ -75,9 +75,9 @@ function extraire_donnees_config(data_file::String)
     centrales = Dict()
     for (i, type_c) in enumerate(types_centrales)
         centrales[type_c] = Dict(
-            "capex" => CAPEX[i]*1000,   # €/MW
-            "opex" => OPEX[i]*1000,     # €/MW/an
+            "opex" => OPEX[i]*1000/52,     # €/MW/an
             "duree_vie" => Duree_vie[i] # années
+            "capex" => CAPEX[i]*1000/Duree_vie[i]/52, # €/MW
         )
     end
 
@@ -99,8 +99,9 @@ function extraire_donnees_config(data_file::String)
     # H2 clusters
     H2 = Dict(
         "CCG" => Dict(
-            "capex" => CAPEX[7]*1000, #€/MW
-            "opex" => OPEX[7]*1000, #€/MW/ year
+            "opex" => OPEX[7]*1000/52, #€/MW/ year
+            "duree_vie" => Duree_vie[7], # years
+            "capex" => CAPEX[7]*1000/Duree_vie[7]/52, #€/MW
             "PU_cost" => XLSX.readdata(data_file, "Parc électrique", "H9"),  #€/MWh basé sur le tarif de prod de la centrale CCG gaz A MODIFIER
             "Pmin" => XLSX.readdata(data_file, "Parc électrique", "F9"), #MW
             "Pmax" => XLSX.readdata(data_file, "Parc électrique", "E9"), #MW
@@ -108,8 +109,9 @@ function extraire_donnees_config(data_file::String)
             "gisement" => XLSX.readdata(data_file, "Gisements", "B12") # Nombre
         ),
         "TAC" => Dict(
-            "capex" => CAPEX[8]*1000,
-            "opex" => OPEX[8]*1000,
+            "opex" => OPEX[8]*1000/52, #€/MW/ year
+            "duree_vie" => Duree_vie[8], # years
+            "capex" => CAPEX[8]*1000/Duree_vie[8]/52, #€/MW
             "PU_cost" => XLSX.readdata(data_file, "Parc électrique", "H10"),
             "Pmin" => XLSX.readdata(data_file, "Parc électrique", "F10"),
             "Pmax" => XLSX.readdata(data_file, "Parc électrique", "E10"),
@@ -142,9 +144,9 @@ function extraire_donnees_config(data_file::String)
     CapaBattery_init = 0 #MW
 
     battery = Dict(
-        "capex" => centrales["batterie"]["capex"],
-        "opex" => centrales["batterie"]["opex"],
+        "opex" => centrales["batterie"]["opex"]/52, #€/MW/semaine
         "duree_vie" => centrales["batterie"]["duree_vie"],
+        "capex" => centrales["batterie"]["capex"]/Duree_vie[10]/52, #€/MW/semaine
         "rendement" => rbattery,
         "d_battery" => d_battery,
         "CapaBattery_init" => CapaBattery_init,

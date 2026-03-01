@@ -27,9 +27,9 @@ dmin_TAC = config["H2"]["TAC"]["dmin"] #hours idem
 NH2_TAC_max = config["H2"]["TAC"]["gisement"] +5 # Nombre de centrales TAC H2 disponibles
 
 # Renewables
-capex_onshore = config["enr"]["onshore"]["capex"] #€/MW
-capex_offshore = config["enr"]["offshore_pose"]["capex"] #€/MW
-capex_solar = config["enr"]["pv_pose"]["capex"] #€/MW
+capex_onshore = config["enr"]["onshore"]["capex"]/config["enr"]["onshore"]["duree_vie"]/52 #€/MW
+capex_offshore = config["enr"]["offshore_pose"]["capex"]/config["enr"]["offshore_pose"]["duree_vie"]/52 #€/MW
+capex_solar = config["enr"]["pv_pose"]["capex"]/config["enr"]["pv_pose"]["duree_vie"]/52 #€/MW
 
 opex_onshore = config["enr"]["onshore"]["opex"] #€/MW
 opex_offshore = config["enr"]["offshore_pose"]["opex"] #€/MW
