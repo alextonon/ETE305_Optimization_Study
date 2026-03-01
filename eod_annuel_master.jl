@@ -407,6 +407,19 @@ else
     id = id +1
 end
 
+open(base_de_resultats, "a") do f
+    write(f,
+        string(
+            id, ";",
+            H2_ANNUAL_STOCK, ";",
+            H2_NO_LIMIT, ";",
+            GISEMENTS, ";",
+            HYDRO_STOCK_REMAINING, ";",
+            FIRST_WEEK, ";",
+        )
+    )
+end
+
 
 # --- Export CSV annuel (comme dans ton code) ---
 open("results/annual_master/results.csv", "w") do f
