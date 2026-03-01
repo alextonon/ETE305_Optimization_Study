@@ -26,6 +26,12 @@ Pmax_TAC_h2 = config["H2"]["TAC"]["Pmax"] #MW idem
 dmin_TAC = config["H2"]["TAC"]["dmin"] #hours idem
 NH2_TAC_max = config["H2"]["TAC"]["gisement"] +5 # Nombre de centrales TAC H2 disponibles
 
+RendementElectrolyse = XLSX.readdata(data_file, "Rendements", "B8") # Rendement de l'électrolyse
+RendementCombustion = XLSX.readdata(data_file, "Rendements", "B11") # Rendement de la combustion de l'hydrogène
+println("DEBUG CHECK --------")
+
+@show RendementElectrolyse
+@show RendementCombustion
 # Renewables
 capex_onshore = config["enr"]["onshore"]["capex"]/config["enr"]["onshore"]["duree_vie"]/52 #€/MW
 capex_offshore = config["enr"]["offshore_pose"]["capex"]/config["enr"]["offshore_pose"]["duree_vie"]/52 #€/MW
@@ -245,8 +251,7 @@ for week in 1:LAST_WEEK
         end
 
     # H2 volume constraints
-    RendementElectrolyse = 0.7 # Rendement de l'électrolyse
-    RendementCombustion = 0.5 # Rendement de la combustion de l'hydrogène
+    
     @constraint(model, sum(PH2_CCG[t,g] for t in 1:Tmax, g in 1:NH2_CCG_max) + sum(PH2_TAC[t,g] for t in 1:Tmax, g in 1:NH2_TAC_max) <= sum(Pexc[t] for t in 1:Tmax)*RendementCombustion*RendementElectrolyse)
 
     # hydro unit constraints

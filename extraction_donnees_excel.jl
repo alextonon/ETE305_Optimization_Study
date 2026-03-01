@@ -76,8 +76,8 @@ function extraire_donnees_config(data_file::String)
     for (i, type_c) in enumerate(types_centrales)
         centrales[type_c] = Dict(
             "opex" => OPEX[i]*1000/52,     # €/MW/an
-            "duree_vie" => Duree_vie[i] # années
-            "capex" => CAPEX[i]*1000/Duree_vie[i]/52, # €/MW
+            "duree_vie" => Duree_vie[i], # années
+            "capex" => CAPEX[i]*1000/Duree_vie[i]/52 # €/MW
         )
     end
 
@@ -107,6 +107,7 @@ function extraire_donnees_config(data_file::String)
             "Pmax" => XLSX.readdata(data_file, "Parc électrique", "E9"), #MW
             "dmin" => XLSX.readdata(data_file, "Parc électrique", "G9"), #h
             "gisement" => XLSX.readdata(data_file, "Gisements", "B12") # Nombre
+            
         ),
         "TAC" => Dict(
             "opex" => OPEX[8]*1000/52, #€/MW/ year
@@ -117,6 +118,7 @@ function extraire_donnees_config(data_file::String)
             "Pmax" => XLSX.readdata(data_file, "Parc électrique", "E10"),
             "dmin" => XLSX.readdata(data_file, "Parc électrique", "G10"),
             "gisement" => XLSX.readdata(data_file, "Gisements", "B13") # Nombre
+           
         )
     )
 
