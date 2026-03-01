@@ -7,10 +7,10 @@ using Dates
 
 FIRST_WEEK = 28
 
-H2_ANNUAL_STOCK = false
+H2_ANNUAL_STOCK = true
 H2_NO_LIMIT = false # ne pas cumuler au stockage annuel...
 
-GISEMENTS = true
+GISEMENTS = false
 
 HYDRO_STOCK_REMAINING = true
 
@@ -411,16 +411,13 @@ open(base_de_resultats, "r") do f
     end
 end
 
-if id == "ID"
-    id = 0
-else 
-    id = id +1
-end
+global id_hex
+id_hex = randstring(['0':'9'; 'A':'F'], 8)
 
 open(base_de_resultats, "a") do f
     write(f,
         string(
-            id, ";",
+            id_hex, ";",
             H2_ANNUAL_STOCK, ";",
             H2_NO_LIMIT, ";",
             GISEMENTS, ";",
@@ -431,9 +428,13 @@ open(base_de_resultats, "a") do f
     )
 end
 
+result_file_path = "results/annual_master/results_$(id_hex).csv"
+parc_file_path = "results/annual_master/parc_annuel_$(id_hex).json"
+evolution_parc_file_path = "results/annual_master/evolution_parc_$(id_hex).json"
+
 
 # --- Export CSV annuel (comme dans ton code) ---
-open("results/annual_master/results.csv", "w") do f
+open(result_file_path, "w") do f
     write(f, "t;Solar;Onshore;Offshore;Battery_stock;Battery_charge;Battery_discharge;STEP_stock;STEP_charge;STEP_discharge;H2_CCG;H2_TAC;H2_Stock;Hydro;Hydro_lac_utilization_rate;hy_th_fatal;Load;Defailance;Exces\n")
     for t in 1:Nhours
         write(f,
@@ -496,11 +497,11 @@ parc = Dict(
 
 
 # Écriture dans fichier JSON
-open("results/annual_master/parc_annuel.json", "w") do f
+open(parc_file_path, "w") do f
     JSON3.write(f, parc; indent=4)
 end
 
-println("Fichier parc_annuel.json généré avec succès ✅")
+println("Fichier parc_annuel_$(id_hex).json généré avec succès ✅")
 
 evolution_parc = Dict(
     "semaine" => 1:Nweeks,
@@ -524,6 +525,6 @@ evolution_parc = Dict(
 )
 
 # Écriture dans fichier JSON
-open("results/annual_master/evolution_parc.json", "w") do f
+open(evolution_parc_file_path, "w") do f
     JSON3.write(f, evolution_parc; indent=4)
 end
