@@ -5,12 +5,14 @@ using Dates
 
 # -------- Configuration ---------
 
+FIRST_WEEK = 28
+
 H2_ANNUAL_STOCK = true
 H2_NO_LIMIT = false # ne pas cumuler au stockage annuel...
 
 GISEMENTS = true
 
-HYDRO_STOCK_REMAINING = true
+HYDRO_STOCK_REMAINING = false
 
 # -------- Extraction des hypothèses du problèmes --------
 data_file = "data/Donnees_etude_de_cas_ETE305.xlsx"
@@ -40,7 +42,7 @@ RendementCombustion = config["rendements"]["combustion"] # Rendement de la combu
 
 # Renewables
 capex_onshore = config["enr"]["onshore"]["capex"] #€/MW
-capex_offshore = config["enr"]["offshore_pose"] #€/MW
+capex_offshore = config["enr"]["offshore_pose"]["capex"] #€/MW
 capex_solar = config["enr"]["pv_pose"]["capex"] #€/MW
 
 opex_onshore = config["enr"]["onshore"]["opex"] #€/MW
@@ -74,7 +76,7 @@ if GISEMENTS == false
 end
 
 # Defailance
-cuns = config["defaillance"]["cost_unsupplied"]  #cost of unsupplied energy €/MWh
+cuns = config["defaillance"]["cost_unsupplied"] #cost of unsupplied energy €/MWh
 cexc = config["defaillance"]["cost_excess"] #cost of in excess energy €/MWh
 
 # Initial capacities 
@@ -90,17 +92,15 @@ Nhours_per_week = 7*24
 Nhours = Nweeks * Nhours_per_week
 
 # Capacités initiales par technologie
-solar_capacities = fill(CapaSolar_init, Nweeks+1)
-offshore_capacities = fill(CapaOffshore_init, Nweeks+1)
-onshore_capacities = fill(CapaOnshore_init, Nweeks+1)
-battery_capacities = fill(CapaBattery_init, Nweeks+1)
-installed_CCG_H2 = fill(0, Nweeks+1)
-installed_TAC_H2 = fill(0, Nweeks+1)
+solar_capacities = fill(CapaSolar_init, Nweeks)
+offshore_capacities = fill(CapaOffshore_init, Nweeks)
+onshore_capacities = fill(CapaOnshore_init, Nweeks)
+battery_capacities = fill(CapaBattery_init, Nweeks)
+installed_CCG_H2 = fill(0, Nweeks)
+installed_TAC_H2 = fill(0, Nweeks)
 
 # Stock Hydro
-hydro_stock_remaining = zeros(Nweeks+1)
-hydro_stock_available = zeros(Nweeks+1)
-hydro_utilization_rate = zeros(Nweeks+1)
+hydro_utilization_rate = zeros(Nweeks)
 hydro_utilization_annual = zeros(Nhours)
 
 # Tableaux horaires annuels pour stocker les résultats de dispatch
@@ -116,8 +116,6 @@ STEP_charge_annual     = zeros(Nhours)
 STEP_discharge_annual  = zeros(Nhours)
 
 # Variables H2
-CCG_H2_running_annual = zeros(Nhours, NH2_CCG_max)
-TAC_H2_running_annual = zeros(Nhours, NH2_TAC_max)
 PH2_CCG_annual        = zeros(Nhours, NH2_CCG_max)
 PH2_TAC_annual        = zeros(Nhours, NH2_TAC_max)
 
@@ -141,7 +139,6 @@ global TAC_H2_running_initial = zeros(Int, NH2_TAC_max)
 global CCG_H2_installed_initial = zeros(Int, NH2_CCG_max)
 global TAC_H2_installed_initial = zeros(Int, NH2_TAC_max)
 
-FIRST_WEEK = 28
 LAST_WEEK = FIRST_WEEK + Nweeks - 1
 
 for (i, w) in enumerate(FIRST_WEEK:LAST_WEEK)
@@ -151,7 +148,7 @@ for (i, w) in enumerate(FIRST_WEEK:LAST_WEEK)
     t_start = now()
     println("Itération $i/$Nweeks | Semaine calendaire $current_week | Début : $t_start")
 
-    time_series = extraire_donnees_semaine(data_file, week, AnneauGarde=24)
+    time_series = extraire_donnees_semaine(data_file, current_week, AnneauGarde=24)
 
     Tmax = time_series["Tmax"]
 
@@ -218,6 +215,7 @@ for (i, w) in enumerate(FIRST_WEEK:LAST_WEEK)
             + (Pexc[t] * RendementElectrolyse)      # Ce qu'on transforme en H2
             - (sum(PH2_CCG[t,g] for g in 1:NH2_CCG_max) + sum(PH2_TAC[t,g] for g in 1:NH2_TAC_max)) / RendementCombustion           # Ce qu'on puise pour faire de l'élec
         )
+
     elseif H2_NO_LIMIT == false
         @constraint(model, sum(PH2_CCG[t,g] for t in 1:Tmax, g in 1:NH2_CCG_max) + sum(PH2_TAC[t,g] for t in 1:Tmax, g in 1:NH2_TAC_max) <= sum(Pexc[t] for t in 1:Tmax)*RendementCombustion*RendementElectrolyse)
     end
@@ -240,9 +238,12 @@ for (i, w) in enumerate(FIRST_WEEK:LAST_WEEK)
         end
     end
 
-
     for g in 1:NH2_TAC_max
         @constraint(model, TAC_H2_running[1,g] - TAC_H2_running_initial[g] == TAC_H2_start[1,g] - TAC_H2_stop[1,g])
+    end
+
+    for g in 1:NH2_CCG_max
+        @constraint(model, CCG_H2_running[1,g] - CCG_H2_running_initial[g] == CCG_H2_start[1,g] - CCG_H2_stop[1,g])
     end
 
     ####### Defining objective function #######
@@ -317,7 +318,7 @@ for (i, w) in enumerate(FIRST_WEEK:LAST_WEEK)
     #@constraint(model, Pdecharge_battery[1] == 0)
     @constraint(model, [t in 1:Tmax-1], stock_battery[t+1]-stock_battery[t]- rbattery*Pcharge_battery[t]+1/rbattery*Pdecharge_battery[t]== 0)
     @constraint(model, [t in 1:Tmax], stock_battery[t] <= d_battery*CapaBattery)
-
+    
     optimize!(model)
 
     #Results
@@ -345,8 +346,6 @@ for (i, w) in enumerate(FIRST_WEEK:LAST_WEEK)
 
     @views PH2_CCG_annual[idx, :]        .= value.(PH2_CCG[1:Nhours_per_week, :])
     @views PH2_TAC_annual[idx, :]        .= value.(PH2_TAC[1:Nhours_per_week, :])
-    @views CCG_H2_running_annual[idx, :] .= value.(CCG_H2_running[1:Nhours_per_week, :])
-    @views TAC_H2_running_annual[idx, :] .= value.(TAC_H2_running[1:Nhours_per_week, :])
 
     @views installed_CCG_H2[week] = round(Int64, sum(value.(CCG_H2_installed)))
     @views installed_TAC_H2[week] = round(Int64, sum(value.(TAC_H2_installed)))
@@ -401,6 +400,8 @@ open(base_de_resultats, "r") do f
     test = read(f, String)
     id = parse(Int,(split(split(test, "\n")[end],";")[1]))
 end
+
+global id
 
 if id == "ID"
     id = 0
