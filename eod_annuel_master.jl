@@ -319,8 +319,8 @@ for (i, w) in enumerate(FIRST_WEEK:LAST_WEEK)
     @constraint(model, [t in 1:Tmax-1], stock_battery[t+1]-stock_battery[t]- rbattery*Pcharge_battery[t]+1/rbattery*Pdecharge_battery[t]== 0)
     @constraint(model, [t in 1:Tmax], stock_battery[t] <= d_battery*CapaBattery)
 
-    @constraint(model, [t in 1:Tmax], Pcharge_battery[t] <= CapaBattery_max * charging_battery[t])
-    @constraint(model, [t in 1:Tmax], Pdecharge_battery[t] <= CapaBattery_max * (1 - charging_battery[t]))
+    # @constraint(model, [t in 1:Tmax], Pcharge_battery[t] <= CapaBattery_max * charging_battery[t])
+    # @constraint(model, [t in 1:Tmax], Pdecharge_battery[t] <= CapaBattery_max * (1 - charging_battery[t]))
     
     optimize!(model)
 
