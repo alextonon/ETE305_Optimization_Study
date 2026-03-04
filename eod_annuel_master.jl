@@ -199,7 +199,7 @@ for (i, w) in enumerate(FIRST_WEEK:LAST_WEEK)
     @variable(model, TAC_H2_start[1:Tmax,1:NH2_TAC_max], Bin)
     @variable(model, TAC_H2_stop[1:Tmax,1:NH2_TAC_max], Bin)
 
-    @variable(model, Pelectrolyse[1:Tmax] >= 0)
+    @variable(model, Pcharge_electrolyzer[1:Tmax] >= 0)
     @variable(model, electrolyzer_capacities[week] <= CapaElectrolyzer<= CapaElectrolyzer_max, start = electrolyzer_capacities[week])
 
     #hydro generation variables
@@ -222,20 +222,20 @@ for (i, w) in enumerate(FIRST_WEEK:LAST_WEEK)
     # Stockage et volume H2
     if H2_ANNUAL_STOCK
         @variable(model, stock_H2[1:Tmax] >= 0)
-        @constraint(model, [t in 1:Tmax], Pelectrolyse[t] <= CapaElectrolyzer)
+        @constraint(model, [t in 1:Tmax], Pcharge_electrolyzer[t] <= CapaElectrolyzer)
 
-        @constraint(model, stock_H2[1] == stock_H2_initial + (Pelectrolyse[1]*RendementElectrolyse) - (sum(PH2_CCG[1,g] for g in 1:NH2_CCG_max) + sum(PH2_TAC[1,g] for g in 1:NH2_TAC_max))/RendementCombustion)
+        @constraint(model, stock_H2[1] == stock_H2_initial + (Pcharge_electrolyzer[1]*RendementElectrolyse) - (sum(PH2_CCG[1,g] for g in 1:NH2_CCG_max) + sum(PH2_TAC[1,g] for g in 1:NH2_TAC_max))/RendementCombustion)
         @constraint(model, stock_H2_balance[t in 2:Tmax], 
             stock_H2[t] == stock_H2[t-1] 
-            + (Pelectrolyse[t] * RendementElectrolyse)      # Ce qu'on transforme en H2
+            + (Pcharge_electrolyzer[t] * RendementElectrolyse)      # Ce qu'on transforme en H2
             - (sum(PH2_CCG[t,g] for g in 1:NH2_CCG_max) + sum(PH2_TAC[t,g] for g in 1:NH2_TAC_max)) / RendementCombustion           # Ce qu'on puise pour faire de l'élec
         )
 
     elseif H2_NO_LIMIT == false
         @constraint(model, sum(PH2_CCG[t,g] for t in 1:Tmax, g in 1:NH2_CCG_max) + sum(PH2_TAC[t,g] for t in 1:Tmax, g in 1:NH2_TAC_max) <= sum(Pexc[t] for t in 1:Tmax)*RendementCombustion*RendementElectrolyse)
-        @constraint(model, Pelectrolyse == 0)
+        @constraint(model, Pcharge_electrolyzer == 0)
     else
-        @constraint(model, Pelectrolyse == 0) # On s'assure que l'électrolyse ne peut pas permettre d'éviter Pexc
+        @constraint(model, Pcharge_electrolyzer == 0) # On s'assure que l'électrolyse ne peut pas permettre d'éviter Pexc
     end
 
 
@@ -281,7 +281,7 @@ for (i, w) in enumerate(FIRST_WEEK:LAST_WEEK)
     @constraint(model, stock_STEP[1] == stock_STEP_initial)
 
     #balance constraint
-    @constraint(model, balance[t in 1:Tmax], sum(PH2_CCG[t,g] for g in 1:NH2_CCG_max) + sum(PH2_TAC[t,g] for g in 1:NH2_TAC_max) + Phy[t] + Pres[t] + CapaSolar * solar_load_factor[t] + CapaOffshore * offshore_load_factor[t] + CapaOnshore * onshore_load_factor[t] - Pcharge_STEP[t] + Pdecharge_STEP[t] - Pcharge_battery[t] + Pdecharge_battery[t] + Puns[t] - load[t] - Pelectrolyse[t] - Pexc[t]  == 0)
+    @constraint(model, balance[t in 1:Tmax], sum(PH2_CCG[t,g] for g in 1:NH2_CCG_max) + sum(PH2_TAC[t,g] for g in 1:NH2_TAC_max) + Phy[t] + Pres[t] + CapaSolar * solar_load_factor[t] + CapaOffshore * offshore_load_factor[t] + CapaOnshore * onshore_load_factor[t] - Pcharge_STEP[t] + Pdecharge_STEP[t] - Pcharge_battery[t] + Pdecharge_battery[t] + Puns[t] - load[t] - Pcharge_electrolyzer[t] - Pexc[t]  == 0)
 
     # H2 Power constraints
     @constraint(model, max_CCG_H2[t in 1:Tmax, i in 1:NH2_CCG_max], PH2_CCG[t,i] <= Pmax_CCG_h2*CCG_H2_running[t,i]) #Pmax constraints
@@ -376,7 +376,7 @@ for (i, w) in enumerate(FIRST_WEEK:LAST_WEEK)
     @views Pexc_annual[idx] .= value.(Pexc[1:Nhours_per_week])
     @views Pres_annual[idx] .= Pres[1:Nhours_per_week]
 
-    @views electrolyzer_annual[idx] .= value.(Pelectrolyse[1:Nhours_per_week])
+    @views electrolyzer_annual[idx] .= value.(Pcharge_electrolyzer[1:Nhours_per_week])
     
     @views load_annual[idx] .= value.(load[1:Nhours_per_week])
 
@@ -489,6 +489,7 @@ open(result_file_path, "w") do f
     end
 end
 
+println("Fichier results_$(id_hex).csv généré avec succès ✅")
 using JSON3
 
 # Construction du dictionnaire annuel
@@ -517,7 +518,8 @@ parc = Dict(
         "defaillance" => round(sum(value.(Puns_annual)), digits=2),
         "exces" => round(sum(value.(Pexc_annual)), digits=2),
         "production_H2_totale" => round(sum(value.(PH2_CCG_annual)) + sum(value.(PH2_TAC_annual)), digits=2),
-        "production_hydro" => round(sum(value.(Phy_annual)), digits=2)
+        "production_hydro" => round(sum(value.(Phy_annual)), digits=2),
+        "p_charge_electrolyser" => round(sum(value.(Pcharge_electrolyzer)), digits=2)
     )
 )
 
@@ -555,3 +557,5 @@ evolution_parc = Dict(
 open(evolution_parc_file_path, "w") do f
     JSON3.write(f, evolution_parc; indent=4)
 end
+
+println("Fichier evolution_parc_$(id_hex).json généré avec succès ✅")
