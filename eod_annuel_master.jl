@@ -525,7 +525,7 @@ parc = Dict(
         "exces" => round(sum(value.(Pexc_annual)), digits=2),
         "production_H2_totale" => round(sum(value.(PH2_CCG_annual)) + sum(value.(PH2_TAC_annual)), digits=2),
         "production_hydro" => round(sum(value.(Phy_annual)), digits=2),
-        "p_charge_electrolyser" => round(sum(value.(Pcharge_electrolyzer)), digits=2)
+        "p_charge_electrolyser" => round(sum(value.(electrolyzer_annual)), digits=2)
     )
 )
 
