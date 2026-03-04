@@ -72,6 +72,8 @@ rbattery = config["battery"]["rendement"] # rendement de la batterie au sockage 
 d_battery = config["battery"]["d_battery"] #hours
 CapaBattery_max = config["battery"]["gisement"] #MW
 
+CapaElectrolyzer_max = 100000 # à Implémenter....
+
 if GISEMENTS == false
     CapaSolar_max = CapaSolar_max + 25000
     CapaOnshore_max = CapaOnshore_max + 25000
@@ -198,7 +200,7 @@ for (i, w) in enumerate(FIRST_WEEK:LAST_WEEK)
     @variable(model, TAC_H2_stop[1:Tmax,1:NH2_TAC_max], Bin)
 
     @variable(model, Pelectrolyse[1:Tmax] >= 0)
-    @variable(model, CapaElectrolyzer >= 0)
+    @variable(model, electrolyzer_capacities[week] <= CapaElectrolyzer<= CapaElectrolyzer_max, start = electrolyzer_capacities[week])
 
     #hydro generation variables
     @variable(model, Phy[1:Tmax] >= 0)
@@ -494,7 +496,8 @@ parc = Dict(
         "onshore" => round(value(onshore_capacities[Nweeks]), digits=2),
         "offshore" => round(value(offshore_capacities[Nweeks]), digits=2),
         "solar" => round(value(solar_capacities[Nweeks]), digits=2),
-        "battery" => round(value(battery_capacities[Nweeks]), digits=2)
+        "battery" => round(value(battery_capacities[Nweeks]), digits=2),
+        "electrolyzer" => round(value(electrolyzer_capacities[Nweeks]), digits=2)
     ),
 
 "H2" => Dict(
@@ -531,7 +534,8 @@ evolution_parc = Dict(
         "onshore" => onshore_capacities[1:Nweeks],
         "offshore" => offshore_capacities[1:Nweeks],
         "solar" => solar_capacities[1:Nweeks],
-            "battery" => battery_capacities[1:Nweeks]
+        "battery" => battery_capacities[1:Nweeks],
+        "electrolyzer" => electrolyzer_capacities[1:Nweeks]
         ),
     "H2" => Dict(
         "CCG" => Dict(
