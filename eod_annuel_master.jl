@@ -6,9 +6,9 @@ using Random
 
 # -------- Configuration ---------
 
-FIRST_WEEK = 28
+FIRST_WEEK = 40
 
-H2_ANNUAL_STOCK = true
+H2_ANNUAL_STOCK = false
 H2_NO_LIMIT = false # ne pas cumuler au stockage annuel...
 
 GISEMENTS = true
@@ -271,8 +271,8 @@ for (i, w) in enumerate(FIRST_WEEK:LAST_WEEK)
                         + CapaBattery*(capex_2h_battery + opex_2h_battery) 
                         + sum(CCG_H2_installed[g]*Pmax_CCG_h2 for g in 1:NH2_CCG_max)*(capex_CCG_H2 + opex_CCG_H2) + sum(PH2_CCG[t,g] for t in 1:Tmax, g in 1:NH2_CCG_max)*PU_cost_h2_CCG
                         + sum(TAC_H2_installed[g]*Pmax_TAC_h2 for g in 1:NH2_TAC_max)*(capex_TAC_H2 + opex_TAC_H2) + sum(PH2_TAC[t,g] for t in 1:Tmax, g in 1:NH2_TAC_max)*PU_cost_h2_TAC
-                        + CapaElectrolyzer*(capex_electrolyzer + opex_electrolyzer
-                        + sum(Puns[t] for t in 1:Tmax)*cuns + sum(Pexc[t] for t in 1:Tmax)*cexc))/1e4
+                        + CapaElectrolyzer*(capex_electrolyzer + opex_electrolyzer)
+                        + sum(Puns[t] for t in 1:Tmax)*cuns + sum(Pexc[t] for t in 1:Tmax)*cexc)/1e4
     )
 
     ######## Defining constraints ########
