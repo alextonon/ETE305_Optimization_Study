@@ -479,7 +479,7 @@ open(result_file_path, "w") do f
                 round(load_annual[t], digits=2), ";",
                 round(Puns_annual[t], digits=2), ";",
                 round(Pexc_annual[t], digits=2), ";",
-                round(electrolyzer_annual[t], digits=2), ";",
+                round(electrolyzer_annual[t], digits=2),
                 "\n"
             )
         )
