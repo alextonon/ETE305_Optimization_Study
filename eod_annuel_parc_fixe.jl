@@ -4,6 +4,17 @@ using JuMP
 using HiGHS
 using Dates
 using JSON3
+using CSV
+using DataFrames
+
+# --------- CONFIG --------- 
+TARGET_ID = "2DC79E79" # ID de la simulation à analyser
+
+# --------- Lecture des données ---------
+
+bdd = CSV.read("results/base_de_données_résultats.csv", DataFrame; delim=';')
+resultat = filter(row -> row.ID == TARGET_ID, bdd)
+
 
 data_file = "data/Donnees_etude_de_cas_ETE305.xlsx"
 parc_de_prod = "results/annual/parc_annuel.json"
