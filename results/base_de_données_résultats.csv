@@ -1,4 +1,4 @@
-ID;H2_ANNUAL_STOCK;H2_NO_LIMIT;GISEMENTS;HYDRO_STOCK_REMAINING;FIRST_WEEK
+ID;H2_ANNUAL_STOCK;H2_NO_LIMIT;GISEMENTS;HYDRO_STOCK_REMAINING;FIRST_WEEK;Comment
 0DC63E86;true;false;false;true;28;
 884C4216;true;false;false;false;28;
 0DC63E86;true;false;false;true;28;
@@ -11,4 +11,5 @@ DCAA77AF;true;false;true;true;28; # Avec H2 pas cher (%10 et pas de contrainte b
 240FCCCF;true;false;true;true;28; # Avec H2 cher et pas de contrainte de batterie
 B4D41B0D;true;false;true;true;28; #H2 prix neutre et pas de contraine
 1D9B9D2F;true;false;true;true;28;
-2DC79E79;true;false;true;true;28;
+2DC79E79;true;false;true;true;28; # Premier résultat complet elctrolyse
+F965B218;false;false;true;true;40;
