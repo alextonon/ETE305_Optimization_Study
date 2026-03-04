@@ -452,9 +452,9 @@ open(base_de_resultats, "a") do f
     )
 end
 
-result_file_path = "results/annual_master/results_$(id_hex).csv"
-parc_file_path = "results/annual_master/parc_annuel_$(id_hex).json"
-evolution_parc_file_path = "results/annual_master/evolution_parc_$(id_hex).json"
+result_file_path = "results/_$(id_hex)/results.csv"
+parc_file_path = "results/_$(id_hex)/parc_annuel.json"
+evolution_parc_file_path = "results/_$(id_hex)/evolution_parc.json"
 
 
 # --- Export CSV annuel (comme dans ton code) ---
