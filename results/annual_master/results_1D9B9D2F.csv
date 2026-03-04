@@ -1,4 +1,4 @@
-t;Solar;Onshore;Offshore;Battery_stock;Battery_charge;Battery_discharge;STEP_stock;STEP_charge;STEP_discharge;H2_CCG;H2_TAC;H2_Stock;Hydro;Hydro_lac_utilization_rate;hy_th_fatal;Load;Defailance;Exces,Electrolyse
+t;Solar;Onshore;Offshore;Battery_stock;Battery_charge;Battery_discharge;STEP_stock;STEP_charge;STEP_discharge;H2_CCG;H2_TAC;H2_Stock;Hydro;Hydro_lac_utilization_rate;hy_th_fatal;Load;Defailance;Exces;Electrolyse
 1;0.0;4434.31;1968.38;0.0;0.0;0.0;0.0;0.0;-0.0;0.0;425.0;9.99915e6;2344.31;1.0;1025.0;10197.0;0.0;0.0;0.0;
 2;0.0;4112.19;1825.4;0.0;188.58;0.0;0.0;1200.0;0.0;4300.0;0.0;9.99055e6;0.0;1.0;1023.0;9872.0;0.0;0.0;0.0;
 3;0.0;3390.27;1504.94;160.3;0.0;0.0;900.0;618.21;0.0;4300.0;0.0;9.98195e6;0.0;1.0;1022.0;9599.0;0.0;0.0;0.0;

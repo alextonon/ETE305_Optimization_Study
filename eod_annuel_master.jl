@@ -456,7 +456,7 @@ evolution_parc_file_path = "results/annual_master/evolution_parc_$(id_hex).json"
 
 # --- Export CSV annuel (comme dans ton code) ---
 open(result_file_path, "w") do f
-    write(f, "t;Solar;Onshore;Offshore;Battery_stock;Battery_charge;Battery_discharge;STEP_stock;STEP_charge;STEP_discharge;H2_CCG;H2_TAC;H2_Stock;Hydro;Hydro_lac_utilization_rate;hy_th_fatal;Load;Defailance;Exces,Electrolyse\n")
+    write(f, "t;Solar;Onshore;Offshore;Battery_stock;Battery_charge;Battery_discharge;STEP_stock;STEP_charge;STEP_discharge;H2_CCG;H2_TAC;H2_Stock;Hydro;Hydro_lac_utilization_rate;hy_th_fatal;Load;Defailance;Exces;Electrolyse\n")
     for t in 1:Nhours
         write(f,
             string(
