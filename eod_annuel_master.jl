@@ -6,11 +6,14 @@ using Random
 # -------- Configuration ---------
 
 FIRST_WEEK = 1
+
 H2_ANNUAL_STOCK = true
 H2_NO_LIMIT = false # ne pas cumuler au stockage annuel...
 GISEMENTS = true
 HYDRO_STOCK_REMAINING = true
+
 solver = "HiGHS"  # Ou Gurobi mais il faut une license
+TIMING_COMPUTATION = true
 
 # -------- Extraction des hypothèses du problèmes --------
 data_file = "data/Donnees_etude_de_cas_ETE305.xlsx"
@@ -92,9 +95,11 @@ CapaBattery_init = 0 #MW
 
 # ----------------- Paramètre optim -----------------
 # Monitoring du temps
-timing_file = joinpath("results/", "timing_log.csv")
-open(timing_file, "w") do f
-    write(f, "iteration;semaine_calendaire;temps_secondes;status\n")
+if TIMING_COMPUTATION
+    timing_file = joinpath("results/", "timing_log.csv")
+    open(timing_file, "w") do f
+        write(f, "iteration;semaine_calendaire;temps_secondes;status\n")
+    end
 end
 
 if solver == "Gurobi"
@@ -366,14 +371,15 @@ for (i, w) in enumerate(FIRST_WEEK:LAST_WEEK)
     
     optimize!(model)
 
-    # Calcul du temp
+    # Calcul du temps
     t_end_proc = time() # Fin du chrono
     duree = t_end_proc - t_start_proc
     statut = termination_status(model)
 
-    # --- Enregistrement immédiat dans le CSV de monitoring ---
-    open(timing_file, "a") do f
-        write(f, "$i;$current_week;$duree;$statut\n")
+    if TIMING_COMPUTATION 
+        open(timing_file, "a") do f
+            write(f, "$i;$current_week;$duree;$statut\n")
+        end
     end
 
     println("Itération $i terminée en $(round(duree, digits=2))s | Statut : $statut")
