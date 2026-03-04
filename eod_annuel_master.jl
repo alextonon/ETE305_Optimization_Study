@@ -3,6 +3,7 @@ using JuMP
 using HiGHS
 using Dates
 using Random
+using Gurobi
 
 # -------- Configuration ---------
 
@@ -180,13 +181,21 @@ for (i, w) in enumerate(FIRST_WEEK:LAST_WEEK)
 
     ########## Defining model ##########
     model = Model(HiGHS.Optimizer)
-    set_optimizer_attribute(model, "mip_rel_gap", 0.01) # S'arrête à 0.5%
+    set_optimizer_attribute(model, "mip_rel_gap", 0.01)
+    set_optimizer_attribute(model, "parallel", "on")
+    set_optimizer_attribute(model, "threads", 0)
+
+    # model = Model(Gurobi.Optimizer)
+    # set_optimizer_attribute(model, "MIPGap", 0.01)       # S'arrête à 1% de l'optimum (ton 0.01 précédent)
+    # set_optimizer_attribute(model, "OutputFlag", 1)      # Mets à 0 si tu veux que Gurobi soit totalement silencieux
+    # set_optimizer_attribute(model, "Threads", 0)         # 0 = utilise tous les coeurs disponibles de ton CPU
+    # set_optimizer_attribute(model, "Presolve", 2)        # Niveau de nettoyage automatique des contraintes inutiles
 
     ########## Defining variables ##########
     #energie renouvelables
-    @variable(model, onshore_capacities[week] <= CapaOnshore <= CapaOnshore_max, start = onshore_capacities[week])
-    @variable(model, offshore_capacities[week] <= CapaOffshore <= CapaOffshore_max, start = offshore_capacities[week])
-    @variable(model, solar_capacities[week] <= CapaSolar <= CapaSolar_max, start = solar_capacities[week])
+    @variable(model, onshore_capacities[week] <= CapaOnshore <= CapaOnshore_max)
+    @variable(model, offshore_capacities[week] <= CapaOffshore <= CapaOffshore_max)
+    @variable(model, solar_capacities[week] <= CapaSolar <= CapaSolar_max)
 
     #H2 generation variables
     #CCG H2
@@ -206,7 +215,7 @@ for (i, w) in enumerate(FIRST_WEEK:LAST_WEEK)
     @variable(model, TAC_H2_stop[1:Tmax,1:NH2_TAC_max], Bin)
 
     @variable(model, Pcharge_electrolyzer[1:Tmax] >= 0)
-    @variable(model, electrolyzer_capacities[week] <= CapaElectrolyzer<= CapaElectrolyzer_max, start = electrolyzer_capacities[week])
+    @variable(model, electrolyzer_capacities[week] <= CapaElectrolyzer<= CapaElectrolyzer_max)
 
     #hydro generation variables
     @variable(model, Phy[1:Tmax] >= 0)
@@ -219,7 +228,7 @@ for (i, w) in enumerate(FIRST_WEEK:LAST_WEEK)
     @variable(model, Pdecharge_STEP[1:Tmax] >= 0)
     @variable(model, stock_STEP[1:Tmax] >= 0)
     # #battery variables
-    @variable(model, battery_capacities[week] <= CapaBattery <= CapaBattery_max, start = battery_capacities[week])
+    @variable(model, battery_capacities[week] <= CapaBattery <= CapaBattery_max)
     @variable(model, Pcharge_battery[1:Tmax] >= 0)
     @variable(model, Pdecharge_battery[1:Tmax] >= 0)
     @variable(model, stock_battery[1:Tmax] >= 0)
@@ -245,11 +254,11 @@ for (i, w) in enumerate(FIRST_WEEK:LAST_WEEK)
     end
 
 
-    set_start_value.(CapaOnshore, onshore_capacities[week])
-    set_start_value.(CapaOffshore, offshore_capacities[week])
-    set_start_value.(CapaSolar, solar_capacities[week])
-    set_start_value.(CapaBattery, battery_capacities[week])
-    set_start_value.(CapaElectrolyzer, electrolyzer_capacities[week])
+    # set_start_value.(CapaOnshore, onshore_capacities[week])
+    # set_start_value.(CapaOffshore, offshore_capacities[week])
+    # set_start_value.(CapaSolar, solar_capacities[week])
+    # set_start_value.(CapaBattery, battery_capacities[week])
+    # set_start_value.(CapaElectrolyzer, electrolyzer_capacities[week])
 
     for g in 1:NH2_CCG_max
         if CCG_H2_installed_initial[g] > 0.5
@@ -347,6 +356,8 @@ for (i, w) in enumerate(FIRST_WEEK:LAST_WEEK)
     # @constraint(model, [t in 1:Tmax], Pdecharge_battery[t] <= CapaBattery_max * (1 - charging_battery[t]))
     
     optimize!(model)
+
+    # Calcul du temp
     t_end_proc = time() # Fin du chrono
     duree = t_end_proc - t_start_proc
     statut = termination_status(model)
