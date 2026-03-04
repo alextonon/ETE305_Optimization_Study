@@ -169,6 +169,12 @@ function extraire_donnees_config(data_file::String)
         "cost_excess" => cexc
     )
 
+    electrolyzer = Dict(
+        "opex" => centrales["electrolyseur"]["opex"]/52, #€/MW/semaine
+        "duree_vie" => centrales["electrolyseur"]["duree_vie"],
+        "capex" => centrales["electrolyseur"]["capex"]/centrales["electrolyseur"]["duree_vie"]/52, #€/MW/semaine
+    )
+
     return Dict(
         "capacites_init" => capacites_init,
         "enr" => centrales,
@@ -176,6 +182,7 @@ function extraire_donnees_config(data_file::String)
         "hydro" => hydro,
         "battery" => battery,
         "defaillance" => defaillance,
-        "rendements" => rendements
+        "rendements" => rendements,
+        "electrolyzer" => electrolyzer
     )
 end
