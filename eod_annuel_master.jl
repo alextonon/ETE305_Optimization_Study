@@ -8,7 +8,7 @@ using Random
 
 FIRST_WEEK = 40
 
-H2_ANNUAL_STOCK = false
+H2_ANNUAL_STOCK = true
 H2_NO_LIMIT = false # ne pas cumuler au stockage annuel...
 
 GISEMENTS = true
@@ -452,10 +452,16 @@ open(base_de_resultats, "a") do f
     )
 end
 
-result_file_path = "results/_$(id_hex)/results.csv"
-parc_file_path = "results/_$(id_hex)/parc_annuel.json"
-evolution_parc_file_path = "results/_$(id_hex)/evolution_parc.json"
+result_file_path = "results/$(id_hex)/results.csv"
+parc_file_path = "results/$(id_hex)/parc_annuel.json"
+evolution_parc_file_path = "results/$(id_hex)/evolution_parc.json"
 
+dir_path = "results/$(id_hex)"
+mkpath(dir_path)
+
+result_file_path = joinpath(dir_path, "results.csv")
+parc_file_path = joinpath(dir_path, "parc_annuel.json")
+evolution_parc_file_path = joinpath(dir_path, "evolution_parc.json")
 
 # --- Export CSV annuel (comme dans ton code) ---
 open(result_file_path, "w") do f
