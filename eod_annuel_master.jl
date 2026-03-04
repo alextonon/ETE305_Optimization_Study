@@ -6,7 +6,7 @@ using Random
 
 # -------- Configuration ---------
 
-FIRST_WEEK = 40
+FIRST_WEEK = 1
 
 H2_ANNUAL_STOCK = true
 H2_NO_LIMIT = false # ne pas cumuler au stockage annuel...
@@ -92,6 +92,11 @@ CapaSolar_init = config["capacites_init"]["Solar"] #MW
 CapaOffshore_init = config["capacites_init"]["Offshore"] #MW
 CapaOnshore_init = config["capacites_init"]["Onshore"] #MW
 CapaBattery_init = 0 #MW
+# ----------------- Fichier timing pour suivi en temps réel -----------------
+timing_file = joinpath("results/", "timing_log.csv")
+open(timing_file, "w") do f
+    write(f, "iteration;semaine_calendaire;temps_secondes;status\n")
+end
 
 # ----------------- Définition des variables annuelles -----------------
 # Nombre de semaines et d'heures totales
@@ -152,6 +157,7 @@ global TAC_H2_installed_initial = zeros(Int, NH2_TAC_max)
 LAST_WEEK = FIRST_WEEK + Nweeks - 1
 
 for (i, w) in enumerate(FIRST_WEEK:LAST_WEEK)
+    t_start_proc = time() # Début du chrono
     week = i # Simulation week
     current_week = (w - 1) % 52 + 1 # Annual week
     
@@ -341,6 +347,16 @@ for (i, w) in enumerate(FIRST_WEEK:LAST_WEEK)
     # @constraint(model, [t in 1:Tmax], Pdecharge_battery[t] <= CapaBattery_max * (1 - charging_battery[t]))
     
     optimize!(model)
+    t_end_proc = time() # Fin du chrono
+    duree = t_end_proc - t_start_proc
+    statut = termination_status(model)
+
+    # --- Enregistrement immédiat dans le CSV de monitoring ---
+    open(timing_file, "a") do f
+        write(f, "$i;$current_week;$duree;$statut\n")
+    end
+
+    println("Itération $i terminée en $(round(duree, digits=2))s | Statut : $statut")
 
     #Results
     # @show termination_status(model)
