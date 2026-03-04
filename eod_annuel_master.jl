@@ -3,7 +3,7 @@ using JuMP
 using HiGHS
 using Dates
 using Random
-using Gurobi
+# using Gurobi
 
 # -------- Configuration ---------
 
