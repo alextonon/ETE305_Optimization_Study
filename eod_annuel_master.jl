@@ -107,7 +107,6 @@ battery_capacities = fill(CapaBattery_init, Nweeks+1)
 electrolyzer_capacities = fill(0, Nweeks+1)
 installed_CCG_H2 = fill(0, Nweeks+1)
 installed_TAC_H2 = fill(0, Nweeks+1)
-installed_electrolyzer = fill(0, Nweeks+1)
 
 # Stock Hydro
 hydro_utilization_rate = zeros(Nweeks+1)
@@ -124,6 +123,7 @@ battery_discharge_annual = zeros(Nhours)
 STEP_stock_annual      = zeros(Nhours)
 STEP_charge_annual     = zeros(Nhours)
 STEP_discharge_annual  = zeros(Nhours)
+
 # Variables H2
 PH2_CCG_annual        = zeros(Nhours, NH2_CCG_max)
 PH2_TAC_annual        = zeros(Nhours, NH2_TAC_max)
@@ -271,7 +271,8 @@ for (i, w) in enumerate(FIRST_WEEK:LAST_WEEK)
                         + CapaBattery*(capex_2h_battery + opex_2h_battery) 
                         + sum(CCG_H2_installed[g]*Pmax_CCG_h2 for g in 1:NH2_CCG_max)*(capex_CCG_H2 + opex_CCG_H2) + sum(PH2_CCG[t,g] for t in 1:Tmax, g in 1:NH2_CCG_max)*PU_cost_h2_CCG
                         + sum(TAC_H2_installed[g]*Pmax_TAC_h2 for g in 1:NH2_TAC_max)*(capex_TAC_H2 + opex_TAC_H2) + sum(PH2_TAC[t,g] for t in 1:Tmax, g in 1:NH2_TAC_max)*PU_cost_h2_TAC
-                        + sum(Puns[t] for t in 1:Tmax)*cuns + sum(Pexc[t] for t in 1:Tmax)*cexc + CapaElectrolyzer*(capex_electrolyzer + opex_electrolyzer))/1e4
+                        + CapaElectrolyzer*(capex_electrolyzer + opex_electrolyzer
+                        + sum(Puns[t] for t in 1:Tmax)*cuns + sum(Pexc[t] for t in 1:Tmax)*cexc))/1e4
     )
 
     ######## Defining constraints ########
