@@ -1,20 +1,16 @@
 include("utils/extraction_donnees_excel.jl")
 using JuMP
-using HiGHS
 using Dates
 using Random
-# using Gurobi
 
 # -------- Configuration ---------
 
 FIRST_WEEK = 1
-
 H2_ANNUAL_STOCK = true
 H2_NO_LIMIT = false # ne pas cumuler au stockage annuel...
-
 GISEMENTS = true
-
 HYDRO_STOCK_REMAINING = true
+solver = "HiGHS"  # Ou Gurobi mais il faut une license
 
 # -------- Extraction des hypothèses du problèmes --------
 data_file = "data/Donnees_etude_de_cas_ETE305.xlsx"
@@ -93,10 +89,21 @@ CapaSolar_init = config["capacites_init"]["Solar"] #MW
 CapaOffshore_init = config["capacites_init"]["Offshore"] #MW
 CapaOnshore_init = config["capacites_init"]["Onshore"] #MW
 CapaBattery_init = 0 #MW
-# ----------------- Fichier timing pour suivi en temps réel -----------------
+
+# ----------------- Paramètre optim -----------------
+# Monitoring du temps
 timing_file = joinpath("results/", "timing_log.csv")
 open(timing_file, "w") do f
     write(f, "iteration;semaine_calendaire;temps_secondes;status\n")
+end
+
+if solver == "Gurobi"
+    println("Attention : tu as choisi Gurobi comme solveur, assure-toi que la licence est bien configurée sur ta machine !")
+    using Gurobi
+elseif solver == "HiGHS"
+    using HiGHS
+else
+    error("Solveur inconnu : $solver. Choisis entre 'Gurobi' et 'HiGHS'.")
 end
 
 # ----------------- Définition des variables annuelles -----------------
@@ -180,16 +187,18 @@ for (i, w) in enumerate(FIRST_WEEK:LAST_WEEK)
     Pres = hydro_fatal + thermique_fatal
 
     ########## Defining model ##########
-    model = Model(HiGHS.Optimizer)
-    set_optimizer_attribute(model, "mip_rel_gap", 0.01)
-    set_optimizer_attribute(model, "parallel", "on")
-    set_optimizer_attribute(model, "threads", 0)
 
-    # model = Model(Gurobi.Optimizer)
-    # set_optimizer_attribute(model, "MIPGap", 0.01)       # S'arrête à 1% de l'optimum (ton 0.01 précédent)
-    # set_optimizer_attribute(model, "OutputFlag", 1)      # Mets à 0 si tu veux que Gurobi soit totalement silencieux
-    # set_optimizer_attribute(model, "Threads", 0)         # 0 = utilise tous les coeurs disponibles de ton CPU
-    # set_optimizer_attribute(model, "Presolve", 2)        # Niveau de nettoyage automatique des contraintes inutiles
+    if solver == "Gurobi"
+        model = Model(Gurobi.Optimizer)
+        set_optimizer_attribute(model, "MIPGap", 0.01)       # S'arrête à 1% de l'optimum 
+        set_optimizer_attribute(model, "OutputFlag", 1)      # Outputs
+        set_optimizer_attribute(model, "Threads", 0)         # maximise les threads CPU utilisés
+    elseif solver == "HiGHS"
+        model = Model(HiGHS.Optimizer)
+        set_optimizer_attribute(model, "mip_rel_gap", 0.01)
+        set_optimizer_attribute(model, "parallel", "on")
+        set_optimizer_attribute(model, "threads", 0)
+    end
 
     ########## Defining variables ##########
     #energie renouvelables

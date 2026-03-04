@@ -152,7 +152,9 @@ for (i, w) in enumerate(FIRST_WEEK:LAST_WEEK)
 
     ########## Defining model ##########
     model = Model(HiGHS.Optimizer)
-    set_optimizer_attribute(model, "mip_rel_gap", 0.01) # S'arrête à 0.5%
+    set_optimizer_attribute(model, "mip_rel_gap", 0.01) 
+    set_optimizer_attribute(model, "parallel", "on")
+    set_optimizer_attribute(model, "threads", 0)
 
     ########## Defining variables ##########
      #H2 generation variables
