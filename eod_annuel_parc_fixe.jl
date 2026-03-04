@@ -8,25 +8,28 @@ using CSV
 using DataFrames
 
 # --------- CONFIG --------- 
-TARGET_ID = "2DC79E79" # ID de la simulation à analyser
+TARGET_ID = "ACC8BA95" # ID de la simulation à analyser
 
-# --------- Lecture des données ---------
-
+# --------- Lecture des données de configuration---------
 bdd = CSV.read("results/base_de_données_résultats.csv", DataFrame; delim=';')
 resultat = filter(row -> row.ID == TARGET_ID, bdd)
 
+FIRST_WEEK = resultat[!,"FIRST_WEEK"][1]
+H2_ANNUAL_STOCK = resultat[!,"H2_ANNUAL_STOCK"][1] == "true" 
+H2_NO_LIMIT = resultat[!,"H2_NO_LIMIT"][1] == "true"
+HYDRO_STOCK_REMAINING = resultat[!,"HYDRO_STOCK_REMAINING"][1] == "true"
 
+# -------- Extraction des hypothèses du problèmes --------
 data_file = "data/Donnees_etude_de_cas_ETE305.xlsx"
-parc_de_prod = "results/annual/parc_annuel.json"
+parc_de_prod = "results/$(TARGET_ID)/parc_annuel.json"
 
 data = open(parc_de_prod, "r") do f
     str = read(f, String)
     JSON3.read(str)
 end
-
-# -------- Extraction des hypothèses du problèmes --------
 config = extraire_donnees_config(data_file)
 
+# Data for h2 clusters
 PU_cost_h2_CCG = config["H2"]["CCG"]["PU_cost"] #€/MWh basé sur le tarif de prod de la centrale CCG gaz A MODIFIER
 Pmin_CCG_h2 = config["H2"]["CCG"]["Pmin"] #MW idem
 Pmax_CCG_h2 = config["H2"]["CCG"]["Pmax"] #MW idem
@@ -37,8 +40,9 @@ Pmin_TAC_h2 = config["H2"]["TAC"]["Pmin"] #MW idem
 Pmax_TAC_h2 = config["H2"]["TAC"]["Pmax"] #MW idem
 dmin_TAC = config["H2"]["TAC"]["dmin"] #hours idem
 
-RendementElectrolyse = XLSX.readdata(data_file, "Rendements", "B8") # Rendement de l'électrolyse
-RendementCombustion = XLSX.readdata(data_file, "Rendements", "B11") # Rendement de la combustion de l'hydrogène
+# Gestion H2
+RendementElectrolyse = config["rendements"]["electrolyse"] # Rendement de l'électrolyse
+RendementCombustion = config["rendements"]["combustion"] # Rendement de la combustion de l'électrolyse
 
 # Hydro
 Pmin_hy_lacs = 0
@@ -51,14 +55,19 @@ rbattery = config["battery"]["rendement"] # rendement de la batterie au sockage 
 d_battery = config["battery"]["d_battery"] #hours
 
 # Defailance
-cuns = config["defaillance"]["cost_unsupplied"]  #cost of unsupplied energy €/MWh
+cuns = config["defaillance"]["cost_unsupplied"] #cost of unsupplied energy €/MWh
 cexc = config["defaillance"]["cost_excess"] #cost of in excess energy €/MWh
+
 
 # ----------------- Définition des variables annuelles -----------------
 # Nombre de semaines et d'heures totales
 Nweeks = 52
 Nhours_per_week = 7*24
 Nhours = Nweeks * Nhours_per_week
+
+# Stock Hydro
+hydro_utilization_rate = zeros(Nweeks+1)
+hydro_utilization_annual = zeros(Nhours)
 
 # Tableaux horaires annuels pour stocker les résultats de dispatch
 solar_annual      = zeros(Nhours)
@@ -75,10 +84,11 @@ STEP_discharge_annual  = zeros(Nhours)
 # Variables H2
 NH2_CCG = data["H2"]["CCG"]["nombre_installees"]
 NH2_TAC = data["H2"]["TAC"]["nombre_installees"]
-CCG_H2_running_annual = zeros(Nhours, NH2_CCG)
-TAC_H2_running_annual = zeros(Nhours, NH2_TAC)
 PH2_CCG_annual        = zeros(Nhours, NH2_CCG)
 PH2_TAC_annual        = zeros(Nhours, NH2_TAC)
+
+stock_H2_annual = zeros(Nhours)
+electrolyzer_annual = zeros(Nhours)
 
 # Hydro / defaillance / excès / hydro et thermique fatal
 Phy_annual  = zeros(Nhours)
@@ -89,9 +99,14 @@ Pres_annual = zeros(Nhours)
 # Conditions initiales pour la première semaine
 global stock_battery_initial = 0
 global stock_STEP_initial    = 0
+global stock_hydro_lac_initial = 0.0
+global stock_H2_initial = 1e7
 
 global installed_CCG_H2 = zeros(Int, NH2_CCG)
 global installed_TAC_H2 = zeros(Int, NH2_TAC)
+
+global CCG_H2_running_initial = zeros(Int, NH2_CCG)
+global TAC_H2_running_initial = zeros(Int, NH2_TAC)
 
 # Capacités
 CapaSolar = data["capacites_MW"]["solar"]
@@ -112,13 +127,16 @@ for i in 1:NH2_TAC
     end
 end
 
-LAST_WEEK = 51
+LAST_WEEK = FIRST_WEEK + Nweeks - 1
 
-for week in 1:LAST_WEEK
+for (i, w) in enumerate(FIRST_WEEK:LAST_WEEK)
+    week = i # Simulation week
+    current_week = (w - 1) % 52 + 1 # Annual week
+    
     t_start = now()
-    println("Début de l'EOD semaine $week à $t_start ...")
+    println("Itération $i/$Nweeks | Semaine calendaire $current_week | Début : $t_start")
 
-    time_series = extraire_donnees_semaine(data_file, week, AnneauGarde=24)
+    time_series = extraire_donnees_semaine(data_file, current_week, AnneauGarde=10)
 
     Tmax = time_series["Tmax"]
 
@@ -127,17 +145,17 @@ for week in 1:LAST_WEEK
     onshore_load_factor = time_series["onshore_load_factor"]
     solar_load_factor = time_series["solar_load_factor"]
     hydro_fatal = time_series["hydro_fatal"]
-    e_hy_lacs = time_series["Usable_per_week_hydro_lacs"]
+    e_hy_lacs = time_series["Usable_per_week_hydro_lacs"] + stock_hydro_lac_initial
     thermique_fatal = time_series["thermique_fatal"]
 
     Pres = hydro_fatal + thermique_fatal
 
     ########## Defining model ##########
     model = Model(HiGHS.Optimizer)
-    set_optimizer_attribute(model, "mip_rel_gap", 0.005) # S'arrête à 0.5%
+    set_optimizer_attribute(model, "mip_rel_gap", 0.01) # S'arrête à 0.5%
 
     ########## Defining variables ##########
-    #H2 generation variables
+     #H2 generation variables
     #CCG H2
     @variable(model, CCG_H2_running[1:Tmax, 1:NH2_CCG], Bin)         # 1 si ON à t
     @variable(model, PH2_CCG[1:Tmax, 1:NH2_CCG] >= 0)
@@ -151,6 +169,8 @@ for week in 1:LAST_WEEK
 
     @variable(model, TAC_H2_start[1:Tmax,1:NH2_TAC], Bin)
     @variable(model, TAC_H2_stop[1:Tmax,1:NH2_TAC], Bin)
+
+    @variable(model, Pcharge_electrolyzer[1:Tmax] >= 0)
 
     #hydro generation variables
     @variable(model, Phy[1:Tmax] >= 0)
@@ -166,10 +186,33 @@ for week in 1:LAST_WEEK
     @variable(model, Pcharge_battery[1:Tmax] >= 0)
     @variable(model, Pdecharge_battery[1:Tmax] >= 0)
     @variable(model, stock_battery[1:Tmax] >= 0)
+    # @variable(model, charging_battery[1:Tmax], Bin) # 1 si la batterie charge à t, 0 sinon (pour éviter de charger et décharger en même temps)
 
+    # Stockage et volume H2
+    if H2_ANNUAL_STOCK
+        @variable(model, stock_H2[1:Tmax] >= 0)
+        @constraint(model, [t in 1:Tmax], Pcharge_electrolyzer[t] <= CapaElectrolyzer)
+
+        @constraint(model, stock_H2[1] == stock_H2_initial + (Pcharge_electrolyzer[1]*RendementElectrolyse) - (sum(PH2_CCG[1,g] for g in 1:NH2_CCG) + sum(PH2_TAC[1,g] for g in 1:NH2_TAC))/RendementCombustion)
+        @constraint(model, stock_H2_balance[t in 2:Tmax], 
+            stock_H2[t] == stock_H2[t-1] 
+            + (Pcharge_electrolyzer[t] * RendementElectrolyse)      # Ce qu'on transforme en H2
+            - (sum(PH2_CCG[t,g] for g in 1:NH2_CCG) + sum(PH2_TAC[t,g] for g in 1:NH2_TAC)) / RendementCombustion           # Ce qu'on puise pour faire de l'élec
+        )
+
+    elseif H2_NO_LIMIT == false
+        @constraint(model, sum(PH2_CCG[t,g] for t in 1:Tmax, g in 1:NH2_CCG) + sum(PH2_TAC[t,g] for t in 1:Tmax, g in 1:NH2_TAC) <= sum(Pexc[t] for t in 1:Tmax)*RendementCombustion*RendementElectrolyse)
+        @constraint(model, Pcharge_electrolyzer == 0)
+    else
+        @constraint(model, Pcharge_electrolyzer == 0) # On s'assure que l'électrolyse ne peut pas permettre d'éviter Pexc
+    end
 
     for g in 1:NH2_TAC
         @constraint(model, TAC_H2_running[1,g] - TAC_H2_running_initial[g] == TAC_H2_start[1,g] - TAC_H2_stop[1,g])
+    end
+
+    for g in 1:NH2_CCG
+        @constraint(model, CCG_H2_running[1,g] - CCG_H2_running_initial[g] == CCG_H2_start[1,g] - CCG_H2_stop[1,g])
     end
 
     ####### Defining objective function #######
@@ -181,7 +224,7 @@ for week in 1:LAST_WEEK
     @constraint(model, stock_STEP[1] == stock_STEP_initial)
 
     #balance constraint
-    @constraint(model, balance[t in 1:Tmax], sum(PH2_CCG[t,g] for g in 1:NH2_CCG) + sum(PH2_TAC[t,g] for g in 1:NH2_TAC) + Phy[t] + Pres[t] + CapaSolar * solar_load_factor[t] + CapaOffshore * offshore_load_factor[t] + CapaOnshore * onshore_load_factor[t] - Pcharge_STEP[t] + Pdecharge_STEP[t] - Pcharge_battery[t] + Pdecharge_battery[t] + Puns[t] - load[t] - Pexc[t]  == 0)
+    @constraint(model, balance[t in 1:Tmax], sum(PH2_CCG[t,g] for g in 1:NH2_CCG) + sum(PH2_TAC[t,g] for g in 1:NH2_TAC) + Phy[t] + Pres[t] + CapaSolar * solar_load_factor[t] + CapaOffshore * offshore_load_factor[t] + CapaOnshore * onshore_load_factor[t] - Pcharge_STEP[t] + Pdecharge_STEP[t] - Pcharge_battery[t] + Pdecharge_battery[t] + Puns[t] - load[t] - Pcharge_electrolyzer[t] - Pexc[t]  == 0)
 
     # H2 Power constraints
     @constraint(model, max_CCG_H2[t in 1:Tmax, i in 1:NH2_CCG], PH2_CCG[t,i] <= Pmax_CCG_h2*CCG_H2_running[t,i]) #Pmax constraints
@@ -213,9 +256,6 @@ for week in 1:LAST_WEEK
             end
         end
 
-    # H2 volume constraints
-    @constraint(model, sum(PH2_CCG[t,g] for t in 1:Tmax, g in 1:NH2_CCG) + sum(PH2_TAC[t,g] for t in 1:Tmax, g in 1:NH2_TAC) <= sum(Pexc[t] for t in 1:Tmax)*RendementCombustion*RendementElectrolyse)
-
     # hydro unit constraints
     @constraint(model, [t=1:Tmax], Phy[t] >= Pmin_hy_lacs)
     @constraint(model, [t=1:Tmax], Phy[t] <= Pmax_hy_lacs)
@@ -225,7 +265,6 @@ for week in 1:LAST_WEEK
     # weekly STEP
     @constraint(model, [t in 1:Tmax], Pcharge_STEP[t] <= Pmax_STEP)
     @constraint(model, [t in 1:Tmax], Pdecharge_STEP[t] <= Pmax_STEP)
-    @constraint(model, stock_STEP[1] == stock_STEP_initial)
     @constraint(model, Pdecharge_STEP[Tmax] <= stock_STEP[Tmax])
     #@constraint(model, stock_STEP[Tmax] == stock_STEP[1])
     #@constraint(model, Pdecharge_STEP[1] == 0)
@@ -235,20 +274,20 @@ for week in 1:LAST_WEEK
     # #battery
     @constraint(model, [t in 1:Tmax], Pcharge_battery[t] <= CapaBattery)
     @constraint(model, [t in 1:Tmax], Pdecharge_battery[t] <= CapaBattery)
-    @constraint(model, stock_battery[1] == stock_battery_initial)
     @constraint(model, Pdecharge_battery[Tmax] <= stock_battery[Tmax])
     #@constraint(model, stock_battery[Tmax] == stock_battery[1])
     #@constraint(model, Pdecharge_battery[1] == 0)
     @constraint(model, [t in 1:Tmax-1], stock_battery[t+1]-stock_battery[t]- rbattery*Pcharge_battery[t]+1/rbattery*Pdecharge_battery[t]== 0)
     @constraint(model, [t in 1:Tmax], stock_battery[t] <= d_battery*CapaBattery)
 
+    # @constraint(model, [t in 1:Tmax], Pcharge_battery[t] <= CapaBattery_max * charging_battery[t])
+    # @constraint(model, [t in 1:Tmax], Pdecharge_battery[t] <= CapaBattery_max * (1 - charging_battery[t]))
+    
     optimize!(model)
 
     #Results
     # @show termination_status(model)
     # @show objective_value(model)
-
-
     
     # --- Stockage des résultats horaires dans les tableaux annuels ---
     t_start = (week-1)*Nhours_per_week + 1
@@ -271,31 +310,53 @@ for week in 1:LAST_WEEK
 
     @views PH2_CCG_annual[idx, :]        .= value.(PH2_CCG[1:Nhours_per_week, :])
     @views PH2_TAC_annual[idx, :]        .= value.(PH2_TAC[1:Nhours_per_week, :])
-    @views CCG_H2_running_annual[idx, :] .= value.(CCG_H2_running[1:Nhours_per_week, :])
-    @views TAC_H2_running_annual[idx, :] .= value.(TAC_H2_running[1:Nhours_per_week, :])
 
     @views Phy_annual[idx]  .= value.(Phy[1:Nhours_per_week])
     @views Puns_annual[idx] .= value.(Puns[1:Nhours_per_week])
     @views Pexc_annual[idx] .= value.(Pexc[1:Nhours_per_week])
     @views Pres_annual[idx] .= Pres[1:Nhours_per_week]
+
+    @views electrolyzer_annual[idx] .= value.(Pcharge_electrolyzer[1:Nhours_per_week])
     
     @views load_annual[idx] .= value.(load[1:Nhours_per_week])
+
+    if H2_ANNUAL_STOCK
+        @views stock_H2_annual[idx] .= value.(stock_H2[1:Nhours_per_week])
+    end
+    if HYDRO_STOCK_REMAINING
+        production_hydro_week = sum(value.(Phy))
+        remaining_hydro = e_hy_lacs - production_hydro_week
+        hydro_utilization_rate[week] = production_hydro_week / e_hy_lacs
+        @views hydro_utilization_annual[idx] .= hydro_utilization_rate[week]
+
+        global stock_hydro_lac_initial = remaining_hydro
+    end
     
     # --- Stock initial pour la semaine suivante ---
     global stock_battery_initial = value(stock_battery[Tmax])
     global stock_STEP_initial    = value(stock_STEP[Tmax])
 
+    if H2_ANNUAL_STOCK
+        global stock_H2_initial = value(stock_H2[Tmax])
+    end
+
     last_CCG_H2_running = value.(CCG_H2_running[Tmax, :])
     last_TAC_H2_running = value.(TAC_H2_running[Tmax, :])
+    
 
     t_end = now()
     println("Fin de l'EOD semaine $week, durée : $(t_end)")
     
 end
 
+dir_path = "results/$(TARGET_ID)"
+mkpath(dir_path)
+
+result_file_path = joinpath(dir_path, "results_parc_fixe.csv")
+
 # --- Export CSV annuel (comme dans ton code) ---
-open("results/annual_fixed_parc/results.csv", "w") do f
-    write(f, "t;Solar;Onshore;Offshore;Battery_stock;Battery_charge;Battery_discharge;STEP_stock;STEP_charge;STEP_discharge;H2_CCG;H2_TAC;Hydro;hy_th_fatal;Load;Defailance;Exces\n")
+open(result_file_path, "w") do f
+    write(f, "t;Solar;Onshore;Offshore;Battery_stock;Battery_charge;Battery_discharge;STEP_stock;STEP_charge;STEP_discharge;H2_CCG;H2_TAC;H2_Stock;Hydro;Hydro_lac_utilization_rate;hy_th_fatal;Load;Defailance;Exces;Electrolyse\n")
     for t in 1:Nhours
         write(f,
             string(
@@ -311,13 +372,18 @@ open("results/annual_fixed_parc/results.csv", "w") do f
                 round(STEP_discharge_annual[t], digits=2), ";",
                 round(sum(PH2_CCG_annual[t, :]), digits=2), ";",
                 round(sum(PH2_TAC_annual[t, :]), digits=2), ";",
+                round(stock_H2_annual[t], digits=2), ";",
                 round(Phy_annual[t], digits=2), ";",
+                round(hydro_utilization_annual[t], digits=2), ";",
                 round(Pres_annual[t], digits=2), ";",
                 round(load_annual[t], digits=2), ";",
                 round(Puns_annual[t], digits=2), ";",
-                round(Pexc_annual[t], digits=2),
+                round(Pexc_annual[t], digits=2), ";",
+                round(electrolyzer_annual[t], digits=2),
                 "\n"
             )
         )
     end
 end
+
+println("Fichier results_$(TARGET_ID).csv généré avec succès ✅")
