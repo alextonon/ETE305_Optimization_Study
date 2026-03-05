@@ -5,16 +5,16 @@ using Random
 
 # -------- Configuration ---------
 
-FIRST_WEEK = 40 # Semaine début de la simulation (1 à 52)
+FIRST_WEEK = 35 # Semaine début de la simulation (1 à 52)
 
 H2_ANNUAL_STOCK = false
 H2_NO_LIMIT = false # false : ne pas cumuler au stockage annuel...
-GISEMENTS = false
+GISEMENTS = true
 HYDRO_STOCK_REMAINING = false 
 
 solver_list = ["HiGHS", "Gurobi", "SCIP", "CBC"]  # Gurobi nécessite une license
-solver = solver_list[3] # Choix du solveur
-TIMING_COMPUTATION = true
+solver = solver_list[1] # Choix du solveur
+TIMING_COMPUTATION = false
 
 # -------- Extraction des hypothèses du problèmes --------
 data_file = "data/Donnees_etude_de_cas_ETE305.xlsx"
