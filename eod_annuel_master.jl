@@ -12,7 +12,8 @@ H2_NO_LIMIT = false # ne pas cumuler au stockage annuel...
 GISEMENTS = true
 HYDRO_STOCK_REMAINING = true
 
-solver = "HiGHS"  # Ou Gurobi mais il faut une license
+solver_list = ["HiGHS", "Gurobi", "SCIP"]  # Gurobi nécessite une license
+solver = solver_list[3] # Choix du solveur
 TIMING_COMPUTATION = true
 
 # -------- Extraction des hypothèses du problèmes --------
@@ -107,8 +108,10 @@ if solver == "Gurobi"
     using Gurobi
 elseif solver == "HiGHS"
     using HiGHS
+elseif solver == "SCIP"
+    using SCIP
 else
-    error("Solveur inconnu : $solver. Choisis entre 'Gurobi' et 'HiGHS'.")
+    error("Solveur inconnu : $solver. Choisis entre 'Gurobi', 'HiGHS', 'SCIP'.")
 end
 
 # ----------------- Définition des variables annuelles -----------------
@@ -203,6 +206,12 @@ for (i, w) in enumerate(FIRST_WEEK:LAST_WEEK)
         set_optimizer_attribute(model, "mip_rel_gap", 0.01)
         set_optimizer_attribute(model, "parallel", "on")
         set_optimizer_attribute(model, "threads", 0)
+    elseif solver == "SCIP"
+        model = Model(SCIP.Optimizer)
+        set_optimizer_attribute(model, "limits/gap", 0.01)       # Gap de 1%
+        set_optimizer_attribute(model, "display/verblevel", 1)   # Niveau de log (0 à 5)
+        set_optimizer_attribute(model, "parallel/mode", 1)       # Active le mode parallèle
+        set_optimizer_attribute(model, "lp/threads", 0)    # Utilise tous les threads disponibles
     end
 
     ########## Defining variables ##########
