@@ -5,15 +5,15 @@ using Random
 
 # -------- Configuration ---------
 
-FIRST_WEEK = 1
+FIRST_WEEK = 40 # Semaine début de la simulation (1 à 52)
 
-H2_ANNUAL_STOCK = true
-H2_NO_LIMIT = false # ne pas cumuler au stockage annuel...
-GISEMENTS = true
-HYDRO_STOCK_REMAINING = true
+H2_ANNUAL_STOCK = false
+H2_NO_LIMIT = false # false : ne pas cumuler au stockage annuel...
+GISEMENTS = false
+HYDRO_STOCK_REMAINING = false 
 
 solver = "HiGHS"  # Ou Gurobi mais il faut une license
-TIMING_COMPUTATION = true
+TIMING_COMPUTATION = false
 
 # -------- Extraction des hypothèses du problèmes --------
 data_file = "data/Donnees_etude_de_cas_ETE305.xlsx"
@@ -480,6 +480,8 @@ end
 global id_hex
 id_hex = randstring(['0':'9'; 'A':'F'], 8)
 
+FIRST_WEEK_PARC_FIXE = -1
+
 open(base_de_resultats, "a") do f
     write(f,
         string(
@@ -489,6 +491,7 @@ open(base_de_resultats, "a") do f
             GISEMENTS, ";",
             HYDRO_STOCK_REMAINING, ";",
             FIRST_WEEK, ";",
+            FIRST_WEEK_PARC_FIXE, ";",
             "\n"
         )
     )
