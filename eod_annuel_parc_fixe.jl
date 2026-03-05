@@ -7,14 +7,18 @@ using JSON3
 using CSV
 using DataFrames
 
+
+
 # --------- CONFIG --------- 
-TARGET_ID = "ACC8BA95" # ID de la simulation à analyser
+TARGET_ID = "GT3JDI92" # ID de la simulation à analyser
+FIRST_WEEK_PARC_FIXE = 40 # Semaine début de la simulation à parc fixé  
 
 # --------- Lecture des données de configuration---------
 bdd = CSV.read("results/base_de_données_résultats.csv", DataFrame; delim=';')
 resultat = filter(row -> row.ID == TARGET_ID, bdd)
 
-FIRST_WEEK = resultat[!,"FIRST_WEEK"][1]
+
+
 H2_ANNUAL_STOCK = resultat[!,"H2_ANNUAL_STOCK"][1] == "true" 
 H2_NO_LIMIT = resultat[!,"H2_NO_LIMIT"][1] == "true"
 HYDRO_STOCK_REMAINING = resultat[!,"HYDRO_STOCK_REMAINING"][1] == "true"
@@ -127,9 +131,9 @@ for i in 1:NH2_TAC
     end
 end
 
-LAST_WEEK = FIRST_WEEK + Nweeks - 1
+LAST_WEEK = FIRST_WEEK_PARC_FIXE + Nweeks - 1
 
-for (i, w) in enumerate(FIRST_WEEK:LAST_WEEK)
+for (i, w) in enumerate(FIRST_WEEK_PARC_FIXE:LAST_WEEK)
     week = i # Simulation week
     current_week = (w - 1) % 52 + 1 # Annual week
     
@@ -387,5 +391,16 @@ open(result_file_path, "w") do f
         )
     end
 end
+
+using CSV, DataFrames
+
+
+# écriture de FIRST_WEEK_PARC_FIXE dans la base de données des résultats
+row = findfirst(bdd.ID .== TARGET_ID)
+
+bdd[row, :FIRST_WEEK_PARC_FIXE] = FIRST_WEEK_PARC_FIXE
+
+
+CSV.write("results/base_de_données_résultats.csv", bdd; delim=';')
 
 println("Fichier results_$(TARGET_ID).csv généré avec succès ✅")

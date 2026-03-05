@@ -5,12 +5,12 @@ using Random
 
 # -------- Configuration ---------
 
-FIRST_WEEK = 1
+FIRST_WEEK = 40 # Semaine début de la simulation (1 à 52)
 
-H2_ANNUAL_STOCK = true
-H2_NO_LIMIT = false # ne pas cumuler au stockage annuel...
-GISEMENTS = true
-HYDRO_STOCK_REMAINING = true
+H2_ANNUAL_STOCK = false
+H2_NO_LIMIT = false # false : ne pas cumuler au stockage annuel...
+GISEMENTS = false
+HYDRO_STOCK_REMAINING = false 
 
 solver_list = ["HiGHS", "Gurobi", "SCIP", "CBC"]  # Gurobi nécessite une license
 solver = solver_list[3] # Choix du solveur
@@ -496,6 +496,8 @@ end
 global id_hex
 id_hex = randstring(['0':'9'; 'A':'F'], 8)
 
+FIRST_WEEK_PARC_FIXE = -1
+
 open(base_de_resultats, "a") do f
     write(f,
         string(
@@ -505,6 +507,7 @@ open(base_de_resultats, "a") do f
             GISEMENTS, ";",
             HYDRO_STOCK_REMAINING, ";",
             FIRST_WEEK, ";",
+            FIRST_WEEK_PARC_FIXE, ";",
             "\n"
         )
     )
