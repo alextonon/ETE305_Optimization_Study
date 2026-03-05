@@ -12,7 +12,7 @@ H2_NO_LIMIT = false # ne pas cumuler au stockage annuel...
 GISEMENTS = true
 HYDRO_STOCK_REMAINING = true
 
-solver_list = ["HiGHS", "Gurobi", "SCIP"]  # Gurobi nécessite une license
+solver_list = ["HiGHS", "Gurobi", "SCIP", "CBC"]  # Gurobi nécessite une license
 solver = solver_list[3] # Choix du solveur
 TIMING_COMPUTATION = true
 
@@ -110,6 +110,8 @@ elseif solver == "HiGHS"
     using HiGHS
 elseif solver == "SCIP"
     using SCIP
+elseif solver == "CBC"
+    using Cbc
 else
     error("Solveur inconnu : $solver. Choisis entre 'Gurobi', 'HiGHS', 'SCIP'.")
 end
@@ -212,6 +214,11 @@ for (i, w) in enumerate(FIRST_WEEK:LAST_WEEK)
         set_optimizer_attribute(model, "display/verblevel", 1)   # Niveau de log (0 à 5)
         set_optimizer_attribute(model, "parallel/mode", 1)       # Active le mode parallèle
         set_optimizer_attribute(model, "lp/threads", 0)    # Utilise tous les threads disponibles
+    elseif solver == "CBC"
+        model = Model(Cbc.Optimizer)
+        set_optimizer_attribute(model, "ratio", 0.01)       # Gap de 1%
+        set_optimizer_attribute(model, "logLevel", 1)   # Niveau de log (0 à 5)
+        set_optimizer_attribute(model, "threads", 0)    # Utilise tous les threads disponibles
     end
 
     ########## Defining variables ##########
