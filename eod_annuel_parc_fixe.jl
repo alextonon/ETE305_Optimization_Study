@@ -17,8 +17,6 @@ FIRST_WEEK_PARC_FIXE = 40 # Semaine début de la simulation à parc fixé
 bdd = CSV.read("results/base_de_données_résultats.csv", DataFrame; delim=';')
 resultat = filter(row -> row.ID == TARGET_ID, bdd)
 
-
-
 H2_ANNUAL_STOCK = resultat[!,"H2_ANNUAL_STOCK"][1] == "true" 
 H2_NO_LIMIT = resultat[!,"H2_NO_LIMIT"][1] == "true"
 HYDRO_STOCK_REMAINING = resultat[!,"HYDRO_STOCK_REMAINING"][1] == "true"
@@ -46,7 +44,8 @@ dmin_TAC = config["H2"]["TAC"]["dmin"] #hours idem
 
 # Gestion H2
 RendementElectrolyse = config["rendements"]["electrolyse"] # Rendement de l'électrolyse
-RendementCombustion = config["rendements"]["combustion"] # Rendement de la combustion de l'électrolyse
+RendementCombustionCCG = config["H2"]["CCG"]["rendement"] # Rendement de la combustion de l'hydrogène pour les CCG
+RendementCombustionTAC = config["H2"]["TAC"]["rendement"] # Rendement de la combustion de l'hydrogène pour les TAC
 
 # Hydro
 Pmin_hy_lacs = 0
@@ -199,15 +198,15 @@ for (i, w) in enumerate(FIRST_WEEK_PARC_FIXE:LAST_WEEK)
         @variable(model, stock_H2[1:Tmax] >= 0)
         @constraint(model, [t in 1:Tmax], Pcharge_electrolyzer[t] <= CapaElectrolyzer)
 
-        @constraint(model, stock_H2[1] == stock_H2_initial + (Pcharge_electrolyzer[1]*RendementElectrolyse) - (sum(PH2_CCG[1,g] for g in 1:NH2_CCG) + sum(PH2_TAC[1,g] for g in 1:NH2_TAC))/RendementCombustion)
+        @constraint(model, stock_H2[1] == stock_H2_initial + (Pcharge_electrolyzer[1]*RendementElectrolyse) - (sum(PH2_CCG[1,g] for g in 1:NH2_CCG_max)/RendementCombustionCCG + sum(PH2_TAC[1,g] for g in 1:NH2_TAC_max)/RendementCombustionTAC))
         @constraint(model, stock_H2_balance[t in 2:Tmax], 
             stock_H2[t] == stock_H2[t-1] 
             + (Pcharge_electrolyzer[t] * RendementElectrolyse)      # Ce qu'on transforme en H2
-            - (sum(PH2_CCG[t,g] for g in 1:NH2_CCG) + sum(PH2_TAC[t,g] for g in 1:NH2_TAC)) / RendementCombustion           # Ce qu'on puise pour faire de l'élec
+            - (sum(PH2_CCG[t,g] for g in 1:NH2_CCG_max)/RendementCombustionCCG + sum(PH2_TAC[t,g] for g in 1:NH2_TAC_max)/RendementCombustionTAC)           # Ce qu'on puise pour faire de l'élec
         )
 
     elseif H2_NO_LIMIT == false
-        @constraint(model, sum(PH2_CCG[t,g] for t in 1:Tmax, g in 1:NH2_CCG) + sum(PH2_TAC[t,g] for t in 1:Tmax, g in 1:NH2_TAC) <= sum(Pexc[t] for t in 1:Tmax)*RendementCombustion*RendementElectrolyse)
+        @constraint(model, sum(PH2_CCG[t,g] for t in 1:Tmax, g in 1:NH2_CCG_max)/RendementCombustionCCG + sum(PH2_TAC[t,g] for t in 1:Tmax, g in 1:NH2_TAC_max)/RendementCombustionTAC <= sum(Pexc[t] for t in 1:Tmax)*RendementElectrolyse)
         @constraint(model, Pcharge_electrolyzer == 0)
     else
         @constraint(model, Pcharge_electrolyzer == 0) # On s'assure que l'électrolyse ne peut pas permettre d'éviter Pexc
