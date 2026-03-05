@@ -42,12 +42,5 @@ Chaque exécution génère un dossier dans `results/` nommé par un ID hexadéci
 | `parc_annuel.json` | État final du parc et bilan énergétique annuel. |
 | `evolution_parc.json` | Historique de la construction des capacités semaine par semaine. |
 
-## 🛠 Modèle Mathématique
-
-Le script optimise le mix en tenant compte de :
-* **Contraintes techniques** : Puissance Min/Max, temps de fonctionnement minimal (`dmin`) pour le thermique H2.
-* **Stockage** : Rendements de cycle pour les Batteries, les STEP et l'électrolyse.
-* **Équilibre** : `Production + Déstockage = Charge + Stockage + Excès - Défaillance`.
-
 ---
 **Note :** Pour utiliser Gurobi, une licence valide doit être installée sur votre machine.
