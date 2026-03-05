@@ -94,11 +94,10 @@ function extraire_donnees_config(data_file::String)
 
 
     RendementElectrolyse = XLSX.readdata(data_file, "Rendements", "B8") # Rendement de l'électrolyse
-    RendementCombustion = XLSX.readdata(data_file, "Rendements", "B11") # Rendement de la combustion de l'hydrogène
+
 
     rendements = Dict(
         "electrolyse" => RendementElectrolyse,
-        "combustion" => RendementCombustion
     )
 
     # CAPEX / OPEX / Durée de vie
@@ -116,7 +115,8 @@ function extraire_donnees_config(data_file::String)
             "Pmin" => XLSX.readdata(data_file, "Parc électrique", "F9"), #MW
             "Pmax" => XLSX.readdata(data_file, "Parc électrique", "E9"), #MW
             "dmin" => XLSX.readdata(data_file, "Parc électrique", "G9"), #h
-            "gisement" => XLSX.readdata(data_file, "Gisements", "B12") # Nombre
+            "gisement" => XLSX.readdata(data_file, "Gisements", "B12"), # Nombre
+            "rendement" => XLSX.readdata(data_file, "Rendements", "B2")
             
         ),
         "TAC" => Dict(
@@ -127,7 +127,8 @@ function extraire_donnees_config(data_file::String)
             "Pmin" => XLSX.readdata(data_file, "Parc électrique", "F10"),
             "Pmax" => XLSX.readdata(data_file, "Parc électrique", "E10"),
             "dmin" => XLSX.readdata(data_file, "Parc électrique", "G10"),
-            "gisement" => XLSX.readdata(data_file, "Gisements", "B13") # Nombre
+            "gisement" => XLSX.readdata(data_file, "Gisements", "B13"), # Nombre
+            "rendement" => XLSX.readdata(data_file, "Rendements", "B3") # Nombre
            
         )
     )
