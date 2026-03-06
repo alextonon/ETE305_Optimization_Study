@@ -5,16 +5,16 @@ using Random
 
 # -------- Configuration ---------
 
-FIRST_WEEK = 40 # Semaine début de la simulation (1 à 52)
+FIRST_WEEK = 35 # Semaine début de la simulation (1 à 52)
 
-H2_ANNUAL_STOCK = false
+H2_ANNUAL_STOCK = true
 H2_NO_LIMIT = false # false : ne pas cumuler au stockage annuel...
 GISEMENTS = false
 HYDRO_STOCK_REMAINING = false 
 
 solver_list = ["HiGHS", "Gurobi", "SCIP", "CBC"]  # Gurobi nécessite une license
-solver = solver_list[3] # Choix du solveur
-TIMING_COMPUTATION = true
+solver = solver_list[1] # Choix du solveur
+TIMING_COMPUTATION = false
 
 # -------- Extraction des hypothèses du problèmes --------
 data_file = "data/Donnees_etude_de_cas_ETE305.xlsx"
@@ -87,7 +87,14 @@ end
 
 # Defailance
 cuns = config["defaillance"]["cost_unsupplied"] #cost of unsupplied energy €/MWh
-cexc = config["defaillance"]["cost_excess"] #cost of in excess energy €/MWh
+
+# if H2_ANNUAL_STOCK
+#     cexc = config["defaillance"]["cost_excess"] + 1000 #cost of in excess energy €/MWh
+# else
+#     cexc = config["defaillance"]["cost_excess"]
+# end
+
+cexc = config["defaillance"]["cost_excess"]
 
 # Initial capacities 
 CapaSolar_init = config["capacites_init"]["Solar"] #MW
@@ -165,7 +172,7 @@ Pres_annual = zeros(Nhours)
 global stock_battery_initial = 0
 global stock_STEP_initial    = 0
 global stock_hydro_lac_initial = 0.0
-global stock_H2_initial = 1e7
+global stock_H2_initial = 0 # ou 1e7
 
 global CCG_H2_running_initial = zeros(Int, NH2_CCG_max)
 global TAC_H2_running_initial = zeros(Int, NH2_TAC_max)
@@ -277,11 +284,11 @@ for (i, w) in enumerate(FIRST_WEEK:LAST_WEEK)
             - (sum(PH2_CCG[t,g] for g in 1:NH2_CCG_max)/RendementCombustionCCG + sum(PH2_TAC[t,g] for g in 1:NH2_TAC_max)/RendementCombustionTAC)           # Ce qu'on puise pour faire de l'élec
         )
 
-    elseif H2_NO_LIMIT == false
-        @constraint(model, sum(PH2_CCG[t,g] for t in 1:Tmax, g in 1:NH2_CCG_max)/RendementCombustionCCG + sum(PH2_TAC[t,g] for t in 1:Tmax, g in 1:NH2_TAC_max)/RendementCombustionTAC <= sum(Pexc[t] for t in 1:Tmax)*RendementElectrolyse)
-        @constraint(model, Pcharge_electrolyzer == 0)
-    else
-        @constraint(model, Pcharge_electrolyzer == 0) # On s'assure que l'électrolyse ne peut pas permettre d'éviter Pexc
+    # elseif H2_NO_LIMIT == false
+    #     @constraint(model, sum(PH2_CCG[t,g] for t in 1:Tmax, g in 1:NH2_CCG_max)/RendementCombustionCCG + sum(PH2_TAC[t,g] for t in 1:Tmax, g in 1:NH2_TAC_max)/RendementCombustionTAC <= sum(Pexc[t] for t in 1:Tmax)*RendementElectrolyse)
+    #     @constraint(model, Pcharge_electrolyzer == 0)
+    # else
+    #     @constraint(model, Pcharge_electrolyzer == 0) # On s'assure que l'électrolyse ne peut pas permettre d'éviter Pexc
     end
 
 
@@ -383,9 +390,11 @@ for (i, w) in enumerate(FIRST_WEEK:LAST_WEEK)
     @constraint(model, [t in 1:Tmax-1], stock_battery[t+1]-stock_battery[t]- rbattery*Pcharge_battery[t]+1/rbattery*Pdecharge_battery[t]== 0)
     @constraint(model, [t in 1:Tmax], stock_battery[t] <= d_battery*CapaBattery)
 
-    # @constraint(model, [t in 1:Tmax], Pcharge_battery[t] <= CapaBattery_max * charging_battery[t])
-    # @constraint(model, [t in 1:Tmax], Pdecharge_battery[t] <= CapaBattery_max * (1 - charging_battery[t]))
-    
+    if H2_ANNUAL_STOCK
+        @constraint(model, [t in 1:Tmax], Pcharge_battery[t] <= CapaBattery_max * charging_battery[t])
+        @constraint(model, [t in 1:Tmax], Pdecharge_battery[t] <= CapaBattery_max * (1 - charging_battery[t]))
+    end
+
     optimize!(model)
 
     # Calcul du temps
