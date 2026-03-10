@@ -88,11 +88,11 @@ end
 # Defailance
 cuns = config["defaillance"]["cost_unsupplied"] #cost of unsupplied energy €/MWh
 
-# if H2_ANNUAL_STOCK
-#     cexc = config["defaillance"]["cost_excess"] + 1000 #cost of in excess energy €/MWh
-# else
-#     cexc = config["defaillance"]["cost_excess"]
-# end
+if H2_ANNUAL_STOCK
+    cexc = config["defaillance"]["cost_excess"] + 1000 #cost of in excess energy €/MWh
+else
+    cexc = config["defaillance"]["cost_excess"]
+end
 
 cexc = config["defaillance"]["cost_excess"]
 
@@ -284,11 +284,11 @@ for (i, w) in enumerate(FIRST_WEEK:LAST_WEEK)
             - (sum(PH2_CCG[t,g] for g in 1:NH2_CCG_max)/RendementCombustionCCG + sum(PH2_TAC[t,g] for g in 1:NH2_TAC_max)/RendementCombustionTAC)           # Ce qu'on puise pour faire de l'élec
         )
 
-    # elseif H2_NO_LIMIT == false
-    #     @constraint(model, sum(PH2_CCG[t,g] for t in 1:Tmax, g in 1:NH2_CCG_max)/RendementCombustionCCG + sum(PH2_TAC[t,g] for t in 1:Tmax, g in 1:NH2_TAC_max)/RendementCombustionTAC <= sum(Pexc[t] for t in 1:Tmax)*RendementElectrolyse)
-    #     @constraint(model, Pcharge_electrolyzer == 0)
-    # else
-    #     @constraint(model, Pcharge_electrolyzer == 0) # On s'assure que l'électrolyse ne peut pas permettre d'éviter Pexc
+    elseif H2_NO_LIMIT == false
+        @constraint(model, sum(PH2_CCG[t,g] for t in 1:Tmax, g in 1:NH2_CCG_max)/RendementCombustionCCG + sum(PH2_TAC[t,g] for t in 1:Tmax, g in 1:NH2_TAC_max)/RendementCombustionTAC <= sum(Pexc[t] for t in 1:Tmax)*RendementElectrolyse)
+        @constraint(model, Pcharge_electrolyzer == 0)
+    else
+        @constraint(model, Pcharge_electrolyzer == 0) # On s'assure que l'électrolyse ne peut pas permettre d'éviter Pexc
     end
 
 

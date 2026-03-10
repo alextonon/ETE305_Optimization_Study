@@ -60,11 +60,11 @@ d_battery = config["battery"]["d_battery"] #hours
 # Defailance
 cuns = config["defaillance"]["cost_unsupplied"] #cost of unsupplied energy €/MWh
 
-# if H2_ANNUAL_STOCK
-#     cexc = config["defaillance"]["cost_excess"] + 1000 #cost of in excess energy €/MWh
-# else
-#     cexc = config["defaillance"]["cost_excess"]
-# end
+if H2_ANNUAL_STOCK
+    cexc = config["defaillance"]["cost_excess"] + 1000 #cost of in excess energy €/MWh
+else
+    cexc = config["defaillance"]["cost_excess"]
+end
 
 cexc = config["defaillance"]["cost_excess"]
 
@@ -167,7 +167,7 @@ for (i, w) in enumerate(FIRST_WEEK_PARC_FIXE:LAST_WEEK)
     set_optimizer_attribute(model, "threads", 0)
 
     ########## Defining variables ##########
-     #H2 generation variables
+    #H2 generation variables
     #CCG H2
     @variable(model, CCG_H2_running[1:Tmax, 1:NH2_CCG], Bin)         # 1 si ON à t
     @variable(model, PH2_CCG[1:Tmax, 1:NH2_CCG] >= 0)
@@ -212,11 +212,11 @@ for (i, w) in enumerate(FIRST_WEEK_PARC_FIXE:LAST_WEEK)
             - (sum(PH2_CCG[t,g] for g in 1:NH2_CCG)/RendementCombustionCCG + sum(PH2_TAC[t,g] for g in 1:NH2_TAC)/RendementCombustionTAC)           # Ce qu'on puise pour faire de l'élec
         )
 
-    # elseif H2_NO_LIMIT == false
-    #     @constraint(model, sum(PH2_CCG[t,g] for t in 1:Tmax, g in 1:NH2_CCG)/RendementCombustionCCG + sum(PH2_TAC[t,g] for t in 1:Tmax, g in 1:NH2_TAC)/RendementCombustionTAC <= sum(Pexc[t] for t in 1:Tmax)*RendementElectrolyse)
-    #     @constraint(model, Pcharge_electrolyzer == 0)
-    # else
-    #     @constraint(model, Pcharge_electrolyzer == 0) # On s'assure que l'électrolyse ne peut pas permettre d'éviter Pexc
+    elseif H2_NO_LIMIT == false
+        @constraint(model, sum(PH2_CCG[t,g] for t in 1:Tmax, g in 1:NH2_CCG)/RendementCombustionCCG + sum(PH2_TAC[t,g] for t in 1:Tmax, g in 1:NH2_TAC)/RendementCombustionTAC <= sum(Pexc[t] for t in 1:Tmax)*RendementElectrolyse)
+        @constraint(model, Pcharge_electrolyzer == 0)
+    else
+        @constraint(model, Pcharge_electrolyzer == 0) # On s'assure que l'électrolyse ne peut pas permettre d'éviter Pexc
     end
 
     for g in 1:NH2_TAC
