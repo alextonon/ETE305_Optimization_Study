@@ -10,7 +10,7 @@ using DataFrames
 
 
 # --------- CONFIG --------- 
-TARGET_ID = "AA6AEFDB" # ID de la simulation à analyser
+TARGET_ID = "65BEAD79" # ID de la simulation à analyser
 FIRST_WEEK_PARC_FIXE = 35 # Semaine début de la simulation à parc fixé  
 
 # --------- Lecture des données de configuration---------
@@ -69,8 +69,6 @@ if H2_ANNUAL_STOCK
 else
     cexc = config["defaillance"]["cost_excess"]
 end
-
-cexc = config["defaillance"]["cost_excess"]
 
 @show cexc
 

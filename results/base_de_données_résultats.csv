@@ -5,3 +5,4 @@ ID;H2_ANNUAL_STOCK;H2_NO_LIMIT;GISEMENTS;HYDRO_STOCK_REMAINING;FIRST_WEEK_OPTIM;
 E2ACC88D;true;false;false;false;35;35;avec Pexc nul mais pb STEP
 0C75C59E;true;false;true;false;35;35;avec Pexc nul et contrainte STEP
 AA6AEFDB;true;false;false;false;35;35;avec Pexc nul et contrainte STEP
+65BEAD79;true;false;true;false;35;35;avec Pexc non nul et contrainte STEP
