@@ -62,7 +62,8 @@ def extraire_donnees_config(data_file: str):
 
     rendements = {
         "electrolyse": ws_rend["B8"].value,
-        "combustion": ws_rend["B11"].value
+        "CCG_H2": ws_rend["B2"].value,
+        "TAC_H2": ws_rend["B3"].value
     }
 
     # ==============================
