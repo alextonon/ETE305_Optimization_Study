@@ -15,19 +15,11 @@ FIRST_WEEK_PARC_FIXE = 35 # Semaine début de la simulation à parc fixé
 
 # --------- Lecture des données de configuration---------
 bdd = CSV.read("results/base_de_données_résultats.csv", DataFrame; delim=';')
-resultat = filter(row -> row.ID == TARGET_ID, bdd)
+resultat = first(filter(row -> row.ID == TARGET_ID, bdd))
 
-H2_ANNUAL_STOCK = resultat[!,"H2_ANNUAL_STOCK"][1] == "true" 
-H2_NO_LIMIT = resultat[!,"H2_NO_LIMIT"][1] == "true"
-HYDRO_STOCK_REMAINING = resultat[!,"HYDRO_STOCK_REMAINING"][1] == "true"
-
-H2_ANNUAL_STOCK = true
-
-
-@show H2_ANNUAL_STOCK
-@show H2_NO_LIMIT
-@show HYDRO_STOCK_REMAINING
-
+H2_ANNUAL_STOCK = resultat.H2_ANNUAL_STOCK
+H2_NO_LIMIT = resultat.H2_NO_LIMIT
+HYDRO_STOCK_REMAINING = resultat.HYDRO_STOCK_REMAINING
 
 # -------- Extraction des hypothèses du problèmes --------
 data_file = "data/Donnees_etude_de_cas_ETE305.xlsx"
