@@ -9,7 +9,7 @@ FIRST_WEEK = 35 # Semaine début de la simulation (1 à 52)
 
 H2_ANNUAL_STOCK = true
 H2_NO_LIMIT = false # false : ne pas cumuler au stockage annuel...
-GISEMENTS = false
+GISEMENTS = true
 HYDRO_STOCK_REMAINING = false 
 
 solver_list = ["HiGHS", "Gurobi", "SCIP", "CBC"]  # Gurobi nécessite une license
@@ -93,8 +93,6 @@ if H2_ANNUAL_STOCK
 else
     cexc = config["defaillance"]["cost_excess"]
 end
-
-cexc = config["defaillance"]["cost_excess"]
 
 # Initial capacities 
 CapaSolar_init = config["capacites_init"]["Solar"] #MW
