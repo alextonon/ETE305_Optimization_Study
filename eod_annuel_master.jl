@@ -265,6 +265,7 @@ for (i, w) in enumerate(FIRST_WEEK:LAST_WEEK)
     @variable(model, Pcharge_STEP[1:Tmax] >= 0)
     @variable(model, Pdecharge_STEP[1:Tmax] >= 0)
     @variable(model, stock_STEP[1:Tmax] >= 0)
+    @variable(model, charging_STEP[1:Tmax], Bin) # 1 si la STEP charge à t, 0 sinon (pour éviter de charger et décharger en même temps)
     # #battery variables
     @variable(model, battery_capacities[week] <= CapaBattery <= CapaBattery_max)
     @variable(model, Pcharge_battery[1:Tmax] >= 0)
@@ -391,6 +392,9 @@ for (i, w) in enumerate(FIRST_WEEK:LAST_WEEK)
     @constraint(model, [t in 1:Tmax], stock_battery[t] <= d_battery*CapaBattery)
 
     if H2_ANNUAL_STOCK
+        @constraint(model, [t in 1:Tmax], Pcharge_STEP[t] <= Pmax_STEP * charging_STEP[t])
+        @constraint(model, [t in 1:Tmax], Pdecharge_STEP[t] <= Pmax_STEP * (1 - charging_STEP[t]))
+
         @constraint(model, [t in 1:Tmax], Pcharge_battery[t] <= CapaBattery_max * charging_battery[t])
         @constraint(model, [t in 1:Tmax], Pdecharge_battery[t] <= CapaBattery_max * (1 - charging_battery[t]))
     end

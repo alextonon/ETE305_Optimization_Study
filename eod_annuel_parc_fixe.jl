@@ -10,7 +10,7 @@ using DataFrames
 
 
 # --------- CONFIG --------- 
-TARGET_ID = "E0FBBF86" # ID de la simulation à analyser
+TARGET_ID = "AA6AEFDB" # ID de la simulation à analyser
 FIRST_WEEK_PARC_FIXE = 35 # Semaine début de la simulation à parc fixé  
 
 # --------- Lecture des données de configuration---------
@@ -20,6 +20,10 @@ resultat = first(filter(row -> row.ID == TARGET_ID, bdd))
 H2_ANNUAL_STOCK = resultat.H2_ANNUAL_STOCK
 H2_NO_LIMIT = resultat.H2_NO_LIMIT
 HYDRO_STOCK_REMAINING = resultat.HYDRO_STOCK_REMAINING
+
+@show H2_ANNUAL_STOCK
+@show H2_NO_LIMIT
+@show HYDRO_STOCK_REMAINING
 
 # -------- Extraction des hypothèses du problèmes --------
 data_file = "data/Donnees_etude_de_cas_ETE305.xlsx"
@@ -67,6 +71,8 @@ else
 end
 
 cexc = config["defaillance"]["cost_excess"]
+
+@show cexc
 
 # ----------------- Définition des variables annuelles -----------------
 # Nombre de semaines et d'heures totales
@@ -194,6 +200,7 @@ for (i, w) in enumerate(FIRST_WEEK_PARC_FIXE:LAST_WEEK)
     @variable(model, Pcharge_STEP[1:Tmax] >= 0)
     @variable(model, Pdecharge_STEP[1:Tmax] >= 0)
     @variable(model, stock_STEP[1:Tmax] >= 0)
+    @variable(model, charging_STEP[1:Tmax], Bin)
     # #battery variables
     @variable(model, Pcharge_battery[1:Tmax] >= 0)
     @variable(model, Pdecharge_battery[1:Tmax] >= 0)
@@ -293,6 +300,9 @@ for (i, w) in enumerate(FIRST_WEEK_PARC_FIXE:LAST_WEEK)
     @constraint(model, [t in 1:Tmax], stock_battery[t] <= d_battery*CapaBattery)
 
     if H2_ANNUAL_STOCK
+        @constraint(model, [t in 1:Tmax], Pcharge_STEP[t] <= Pmax_STEP * charging_STEP[t])
+        @constraint(model, [t in 1:Tmax], Pdecharge_STEP[t] <= Pmax_STEP * (1 - charging_STEP[t]))
+
         @constraint(model, [t in 1:Tmax], Pcharge_battery[t] <= CapaBattery* charging_battery[t])
         @constraint(model, [t in 1:Tmax], Pdecharge_battery[t] <= CapaBattery * (1 - charging_battery[t]))
     end

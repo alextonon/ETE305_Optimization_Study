@@ -1,5 +1,7 @@
 ID;H2_ANNUAL_STOCK;H2_NO_LIMIT;GISEMENTS;HYDRO_STOCK_REMAINING;FIRST_WEEK_OPTIM;FIRST_WEEK_PARC_FIXE;Comment
-57C2F490;true;false;true;false;35;35;avec Pexc non nul
+57C2F490;true;false;true;false;35;35;avec Pexc nul mais pb STEP
 16FEA0A9;false;false;true;false;35;35;
 8BBDC87E;false;false;false;false;35;35;
-E2ACC88D;true;false;false;false;35;35;
+E2ACC88D;true;false;false;false;35;35;avec Pexc nul mais pb STEP
+0C75C59E;true;false;true;false;35;35;avec Pexc nul et contrainte STEP
+AA6AEFDB;true;false;false;false;35;35;avec Pexc nul et contrainte STEP
